@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildAttendeeExportData } from "../lib/attendee-export.mjs";
+import { buildAllRegistrantsCsv, buildAttendeeExportData } from "../lib/attendee-export.mjs";
 
 const registrations = [
   {
@@ -75,4 +75,18 @@ test("includes current custom questions that no attendee has answered yet", () =
     "Date registered",
   ]);
   assert.equal(result.sheets[2].rows[0]["answer_shirt-size"], undefined);
+});
+
+test("builds a CSV from the All Registrants worksheet including escaped answers", () => {
+  const exportData = buildAttendeeExportData(registrations);
+  const csv = buildAllRegistrantsCsv(exportData);
+
+  assert.equal(
+    csv,
+    [
+      "Name,Email,Meal preference,Contact methods,Status,Check-in,Date registered",
+      "Ana Santos,ana@example.com,Vegetarian,,confirmed,Attended,2026-09-24T08:30:00.000Z",
+      'Ben Cruz,ben@example.com,Regular,"Email, SMS",confirmed,Not attended,2026-09-24T09:00:00.000Z',
+    ].join("\r\n"),
+  );
 });

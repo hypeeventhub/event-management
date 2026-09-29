@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+@keyframes raffle-confetti-fall {
+  0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate3d(28px, 110vh, 0) rotate(720deg); opacity: 0; }
+}
+
+.raffle-confetti {
+  animation-name: raffle-confetti-fall;
+  animation-timing-function: cubic-bezier(.2, .7, .3, 1);
+  animation-iteration-count: 1;
+  animation-fill-mode: both;
+}
+
 :root {
   --background: #fffaf7;
   --foreground: #25170f;

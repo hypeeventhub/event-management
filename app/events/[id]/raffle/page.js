@@ -1,277 +1,118 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Dice5, LoaderCircle, RotateCcw, Trophy, UsersRound } from "lucide-react";
+import { ArrowLeft, CircleAlert, LoaderCircle, Play, Settings } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useReducer, useState } from "react";
+import { useCallback, useState } from "react";
 import useSWR from "swr";
 
 import { RoleGate } from "@/components/auth/role-gate";
-import { Sidebar } from "@/components/dashboard/sidebar";
-import { TopHeader } from "@/components/dashboard/top-header";
-import { RaffleWheel } from "@/components/raffle/raffle-wheel";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { NamePicker } from "@/components/raffle/name-picker";
+import { RaffleSettings } from "@/components/raffle/raffle-settings";
+import { WinnerCelebrationDialog } from "@/components/raffle/winner-celebration-dialog";
 import api from "@/lib/api";
-import {
-  canCancel,
-  canConfirm,
-  canStartDraw,
-  createRaffleRequestTracker,
-  createRaffleState,
-  getRaffleCacheKey,
-  getRaffleErrorMessage,
-  getWheelAttendees,
-  isRaffleAccessError,
-  raffleReducer,
-  runRaffleMutation,
-} from "@/lib/raffle-state.mjs";
+import { shouldReconcileRaffleError } from "@/lib/raffle-client.mjs";
+import { getRaffleTheme } from "@/lib/raffle-themes.mjs";
+import { getWinnerCelebrationState } from "@/lib/winner-celebration.mjs";
 
-function attendeeName(attendee) {
-  return [attendee?.first_name, attendee?.last_name].filter(Boolean).join(" ");
-}
+function RafflePage({ eventSlug, userId }) {
+  const endpoint = `/api/events/${encodeURIComponent(eventSlug)}/raffle`;
+  const { data, error, isLoading, mutate } = useSWR([endpoint, String(userId)], ([url]) => api.get(url).then((response) => response.data.data), { revalidateOnFocus: false });
+  const [view, setView] = useState("raffle");
+  const [status, setStatus] = useState("ready");
+  const [selectedEntry, setSelectedEntry] = useState(null);
+  const [pendingDraw, setPendingDraw] = useState(null);
+  const [lastWinner, setLastWinner] = useState(null);
+  const [actionError, setActionError] = useState("");
 
-function RaffleShell({ user, logout, eventId }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [logoutError, setLogoutError] = useState("");
-  const [state, dispatch] = useReducer(raffleReducer, undefined, createRaffleState);
-  const [tracker] = useState(createRaffleRequestTracker);
-  const endpoint = `/api/events/${encodeURIComponent(eventId)}/raffle`;
-  const { data, error, mutate } = useSWR(
-    getRaffleCacheKey(user.id, eventId),
-    ([url]) => api.get(url).then((response) => response.data.data),
-    { revalidateOnFocus: false, revalidateOnReconnect: false },
-  );
+  const finishAnimation = useCallback(() => setStatus("pending"), []);
 
-  useEffect(() => {
-    const action = tracker.cachedLoadAction(data, error);
-    if (action) {
-      dispatch(action);
-      if (isRaffleAccessError(error) && data) mutate(undefined, { revalidate: false }).catch(() => {});
-    }
-  }, [data, error, mutate, tracker]);
-
-  useEffect(() => {
-    tracker.resume();
-    return () => {
-      tracker.dispose();
-      // A same-tick effect setup in development can resume before cleanup runs.
-      queueMicrotask(() => {
-        const drawId = tracker.takeCleanupDrawId();
-        if (drawId !== null) api.delete(`${endpoint}/draws/${drawId}`).catch(() => {});
-      });
-    };
-  }, [endpoint, tracker]);
-
-  async function refresh(options) {
-    const token = tracker.beginRefresh(options);
-    if (!token) return;
+  async function startDraw() {
+    if (!data?.entries.length || ["drawing", "spinning"].includes(status)) return;
+    setActionError(""); setLastWinner(null); setStatus("drawing");
     try {
-      const response = await api.get(endpoint);
-      if (!tracker.shouldApplySnapshot(token)) return;
-      const payload = response.data.data;
-      tracker.setPendingDraw(payload.pending_draw?.id);
-      dispatch({ type: "LOAD_SUCCESS", payload });
-      mutate(payload, { revalidate: false }).catch(() => {});
+      const payload = (await api.post(`${endpoint}/draws`)).data.data;
+      setPendingDraw(payload.draw); setSelectedEntry(payload.entry); setStatus("spinning");
+    } catch (requestError) { setStatus("ready"); setActionError(requestError.response?.data?.message || "The draw could not be started."); }
+  }
+
+  async function confirmWinner() {
+    const activeDraw = pendingDraw || data?.pending_draw?.draw;
+    if (!activeDraw) return;
+    setStatus("confirming"); setActionError("");
+    try {
+      const payload = (await api.post(`${endpoint}/draws/${activeDraw.id}/confirm`)).data.data;
+      setLastWinner(payload.winner); setPendingDraw(null); setSelectedEntry(null); setStatus("confirmed"); await mutate();
     } catch (requestError) {
-      if (tracker.shouldApplySnapshot(token)) {
-        if (isRaffleAccessError(requestError)) {
-          tracker.setPendingDraw(null);
-          mutate(undefined, { revalidate: false }).catch(() => {});
-        }
-        dispatch({ type: "LOAD_FAILURE", error: requestError });
-      }
-    } finally {
-      tracker.settleRefresh(token);
+      if (shouldReconcileRaffleError(requestError)) {
+        setPendingDraw(null); setSelectedEntry(null); setStatus("ready");
+        try { await mutate(); } catch { /* Keep the safe stale-result message below. */ }
+        setActionError("The raffle changed in another session. Its latest state has been loaded.");
+      } else { setStatus("pending"); setActionError(requestError.response?.data?.message || "The winner could not be confirmed."); }
     }
-  }
-
-  function mutateDraw(operation, request) {
-    return runRaffleMutation({
-      operation,
-      tracker,
-      dispatch,
-      request: async () => {
-        try {
-          return (await request()).data.data;
-        } catch (requestError) {
-          if (isRaffleAccessError(requestError)) mutate(undefined, { revalidate: false }).catch(() => {});
-          throw requestError;
-        }
-      },
-      refresh: () => refresh({ supersede: true }),
-      cleanup: () => {
-        const drawId = tracker.takeCleanupDrawId();
-        if (drawId !== null) api.delete(`${endpoint}/draws/${drawId}`).catch(() => {});
-      },
-    });
-  }
-
-  async function spin() {
-    if (!canStartDraw(state)) return;
-    await mutateDraw("DRAW", () => api.post(`${endpoint}/draws`));
-  }
-
-  async function confirm() {
-    if (!canConfirm(state)) return;
-    await mutateDraw("CONFIRM", () => api.post(`${endpoint}/draws/${state.pendingDraw.id}/confirm`));
   }
 
   async function drawAgain() {
-    if (!canCancel(state)) return;
-    await mutateDraw("CANCEL", () => api.delete(`${endpoint}/draws/${state.pendingDraw.id}`));
-  }
-
-  async function handleLogout() {
-    setLogoutError("");
-    try {
-      await logout();
-    } catch (requestError) {
-      setLogoutError(getRaffleErrorMessage(requestError, "Could not log out. Please try again."));
+    const activeDraw = pendingDraw || data?.pending_draw?.draw;
+    if (!activeDraw) { setStatus("ready"); setLastWinner(null); return; }
+    setStatus("cancelling"); setActionError("");
+    try { await api.delete(`${endpoint}/draws/${activeDraw.id}`); setPendingDraw(null); setSelectedEntry(null); setLastWinner(null); setStatus("ready"); await mutate(); }
+    catch (requestError) {
+      if (shouldReconcileRaffleError(requestError)) {
+        setPendingDraw(null); setSelectedEntry(null); setStatus("ready");
+        try { await mutate(); } catch { /* Keep the safe stale-result message below. */ }
+        setActionError("The raffle changed in another session. Its latest state has been loaded.");
+      } else { setStatus("pending"); setActionError(requestError.response?.data?.message || "The draw could not be cancelled."); }
     }
   }
 
-  const busy = ["drawing", "confirming", "cancelling", "reconciling"].includes(state.status);
-  const selected = state.selectedAttendee;
-  const currentWinner = state.status === "spinning" ? null : state.lastWinner || selected;
-  const wheelAttendees = getWheelAttendees(state);
-  const selectedRegistrationId = selected?.registration_id ?? null;
+  async function saveSettings(payload) {
+    setStatus("saving"); setActionError("");
+    try { await api.put(`${endpoint}/settings`, payload); await mutate(); setView("raffle"); setStatus("ready"); setSelectedEntry(null); setLastWinner(null); }
+    catch (requestError) { setStatus("ready"); setActionError(requestError.response?.data?.message || "The raffle settings could not be saved."); }
+  }
 
+  if (isLoading) return <main className="flex min-h-screen items-center justify-center bg-[#6f3faa] text-white"><LoaderCircle className="size-10 animate-spin" aria-label="Loading raffle" /></main>;
+  if (error || !data) return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#6f3faa] p-6 text-center text-white"><CircleAlert className="size-10" /><p>The raffle could not be loaded.</p><Link href="/" className="rounded-full bg-white px-5 py-3 font-semibold text-[#5d3294]">Return to dashboard</Link></main>;
+
+  if (view === "settings") return <RaffleSettings endpoint={endpoint} initialEntries={data.entries} initialSettings={data.settings} winners={data.winners} winnerPagination={data.winner_pagination} saving={status === "saving"} error={actionError} onBack={() => setView("raffle")} onSave={saveSettings} />;
+
+  const theme = getRaffleTheme(data.settings.theme);
+  const effectiveStatus = status === "ready" && data.pending_draw ? "pending" : status;
+  const effectiveEntry = selectedEntry || data.pending_draw?.entry || null;
+  const celebrationState = getWinnerCelebrationState(effectiveStatus, effectiveEntry, lastWinner);
+  const busy = ["drawing", "spinning", "confirming", "cancelling"].includes(effectiveStatus);
   return (
-    <div className="min-h-screen bg-[#fffaf7] text-[#25170f]">
-      <Sidebar role={user.role} activeItem="Dashboard" mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <TopHeader onMenuOpen={() => setSidebarOpen(true)} onLogout={handleLogout} user={user} />
+    <main className="flex min-h-screen flex-col overflow-hidden text-white" style={{ background: theme.background }}>
+      <header className="flex items-center justify-between px-5 py-5 sm:px-8">
+        <Link href="/" aria-label="Back to dashboard" className="rounded-full p-3 hover:bg-white/10"><ArrowLeft /></Link>
+        <div className="text-center"><p className="text-xs tracking-[.2em] uppercase text-white/65">Event raffle</p><h1 className="max-w-[55vw] truncate text-lg font-semibold sm:text-2xl">{data.event.title}</h1></div>
+        <button type="button" onClick={() => setView("settings")} disabled={busy} aria-label="Raffle settings" className="rounded-full p-3 hover:bg-white/10 disabled:opacity-40"><Settings /></button>
+      </header>
 
-      <div className="xl:pl-72">
-        <main className="min-h-screen px-4 pt-[72px] pb-10 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-[1400px] space-y-6">
-            <div className="space-y-4 pt-1">
-              <Button asChild variant="ghost" size="sm"><Link href="/"><ArrowLeft />Back to dashboard</Link></Button>
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-                <div>
-                  <p className="text-xs font-bold tracking-[0.08em] text-[#f6671e] uppercase">Event raffle</p>
-                  <h1 className="mt-1 text-[28px] leading-9 font-bold tracking-tight sm:text-4xl sm:leading-11">
-                    {state.event?.title || "Raffle"}
-                  </h1>
-                  <p className="mt-1 text-sm text-[#6f625b]">Every confirmed registration gets one chance until it wins.</p>
-                </div>
-                <div className="inline-flex items-center gap-2 self-start rounded-xl bg-[#fff4ee] px-4 py-3 text-sm font-semibold text-[#9a4a23] sm:self-auto">
-                  <UsersRound className="size-5" aria-hidden="true" />
-                  <span>{state.eligibleCount.toLocaleString()} remaining eligible</span>
-                </div>
-              </div>
-            </div>
+      {actionError && <div role="alert" className="mx-auto mt-2 flex max-w-xl items-center gap-2 rounded-lg bg-red-950/35 px-4 py-3 text-sm"><CircleAlert className="size-4" />{actionError}</div>}
 
-            {(state.error || logoutError) && (
-              <div role="alert" className="flex items-start gap-2 rounded-xl bg-[#ffdad6] px-4 py-3 text-sm font-medium text-[#93000a]">
-                <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1">{state.error || logoutError}</span>
-                {state.error && state.event && (
-                  <button type="button" className="shrink-0 font-semibold underline underline-offset-2" disabled={busy} onClick={refresh}>
-                    Refresh raffle
-                  </button>
-                )}
-              </div>
-            )}
-
-            {state.status === "loading" ? (
-              <Card className="flex min-h-80 items-center justify-center gap-3 text-[#f6671e]">
-                <LoaderCircle className="size-7 animate-spin" aria-hidden="true" />
-                <span>Loading raffle...</span>
-              </Card>
-            ) : state.status === "error" && !state.event ? (
-              <Card className="flex min-h-64 flex-col items-center justify-center gap-4 p-6 text-center">
-                <p className="text-sm text-[#6f625b]">The raffle could not be loaded.</p>
-                <Button type="button" onClick={refresh}>Try again</Button>
-              </Card>
-            ) : (
-              <>
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
-                  <Card className="flex min-w-0 items-center justify-center overflow-hidden border border-[#ffdece] p-4 sm:p-6">
-                    <RaffleWheel
-                      attendees={wheelAttendees}
-                      selectedRegistrationId={selectedRegistrationId}
-                      spinning={state.status === "spinning"}
-                      onSpinEnd={() => dispatch({ type: "SPIN_END" })}
-                    />
-                  </Card>
-
-                  <Card className="flex flex-col justify-between gap-6 border border-[#ffdece] p-5 sm:p-7">
-                    <div className="space-y-5">
-                      <div className="flex size-12 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]"><Dice5 className="size-6" aria-hidden="true" /></div>
-                      <div>
-                        <h2 className="text-xl font-bold">Draw a winner</h2>
-                        <p className="mt-1 text-sm leading-6 text-[#6f625b]">The server selects the attendee. Confirm the result to add it to winner history.</p>
-                      </div>
-
-                      {state.status === "empty" && <p className="rounded-xl bg-[#fff4ee] p-4 text-sm text-[#6f625b]">No confirmed registrations are available yet.</p>}
-                      {state.status === "exhausted" && <p className="rounded-xl bg-[#fff4ee] p-4 text-sm text-[#6f625b]">All eligible attendees have already won.</p>}
-                      {state.status === "drawing" && <p role="status" className="text-sm text-[#6f625b]">Selecting an attendee...</p>}
-                      {state.status === "reconciling" && <p role="status" className="text-sm text-[#6f625b]">Updating raffle...</p>}
-                      {state.status === "spinning" && <p role="status" className="text-sm text-[#6f625b]">Spinning to the selected attendee...</p>}
-
-                      {currentWinner && (
-                        <div className="rounded-2xl bg-[#fff4ee] p-5" aria-live="polite">
-                          <p className="text-xs font-bold tracking-[0.08em] text-[#9a4a23] uppercase">
-                            {state.status === "confirmed" ? "Confirmed winner" : "Selected attendee"}
-                          </p>
-                          <p className="mt-2 break-words text-2xl font-bold text-[#25170f]">{attendeeName(currentWinner)}</p>
-                          <p className="mt-1 text-sm text-[#6f625b]">{currentWinner.masked_email}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      {canConfirm(state) || state.status === "confirming" || state.status === "cancelling" ? (
-                        <>
-                          <Button type="button" className="w-full" disabled={!canConfirm(state) || busy} onClick={confirm}>
-                            {state.status === "confirming" && <LoaderCircle className="animate-spin" />}
-                            {state.status === "confirming" ? "Confirming..." : "Confirm Winner"}
-                          </Button>
-                          <Button type="button" variant="secondary" className="w-full" disabled={!canCancel(state) || busy} onClick={drawAgain}>
-                            {state.status === "cancelling" ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}
-                            {state.status === "cancelling" ? "Cancelling..." : "Draw Again"}
-                          </Button>
-                        </>
-                      ) : (
-                        <Button type="button" className="w-full" disabled={!canStartDraw(state) || busy} onClick={spin}>
-                          {state.status === "drawing" ? <LoaderCircle className="animate-spin" /> : <Dice5 />}
-                          {state.status === "drawing" ? "Selecting..." : "Spin Wheel"}
-                        </Button>
-                      )}
-                      {state.status === "pending" && <p className="text-center text-xs text-[#6f625b]">Confirm this attendee or cancel the draw to try again.</p>}
-                    </div>
-                  </Card>
-                </div>
-
-                <Card className="overflow-hidden border border-[#ffdece]">
-                  <div className="flex items-center gap-3 border-b border-[#ffdece] px-5 py-4 sm:px-7">
-                    <span className="flex size-9 items-center justify-center rounded-lg bg-[#fff4ee] text-[#f6671e]"><Trophy className="size-5" aria-hidden="true" /></span>
-                    <div><h2 className="font-bold">Winner history</h2><p className="text-xs text-[#6f625b]">Most recent winners first</p></div>
-                  </div>
-                  {state.winners.length === 0 ? (
-                    <p className="px-5 py-10 text-center text-sm text-[#6f625b]">No winners have been confirmed yet.</p>
-                  ) : (
-                    <ol className="divide-y divide-[#ffdece]/70">
-                      {state.winners.map((winner, index) => (
-                        <li key={winner.id} className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
-                          <div className="flex items-center gap-3"><span className="w-7 text-sm font-bold text-[#f6671e]">{index + 1}.</span><span className="font-semibold">{attendeeName(winner)}</span></div>
-                          <div className="pl-10 text-xs text-[#6f625b] sm:pl-0 sm:text-right"><span className="block">{winner.masked_email}</span><time dateTime={winner.won_at}>{new Date(winner.won_at).toLocaleString()}</time></div>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                </Card>
-              </>
-            )}
-          </div>
-        </main>
+      <div className="flex flex-1 flex-col items-center justify-center">
+        <NamePicker entries={data.entries} selectedEntry={effectiveEntry || lastWinner} spinning={effectiveStatus === "spinning"} speed={data.settings.speed} onAnimationEnd={finishAnimation} />
+        <p className="mb-7 text-sm text-white/70">{data.entries.length.toLocaleString()} name{data.entries.length === 1 ? "" : "s"} in this event</p>
+        <div className="flex min-h-24 flex-wrap items-center justify-center gap-3 px-4">
+          {!celebrationState.open && <button type="button" disabled={busy || data.entries.length === 0} onClick={startDraw} className="flex items-center gap-2 rounded-full px-10 py-5 text-xl font-black text-[#382054] shadow-xl disabled:opacity-50" style={{ background: theme.accent }}>{effectiveStatus === "drawing" || effectiveStatus === "spinning" ? <LoaderCircle className="animate-spin" /> : <Play className="fill-current" />}{effectiveStatus === "drawing" ? "Choosing..." : effectiveStatus === "spinning" ? "Picking..." : "Pick a Name"}</button>}
+        </div>
       </div>
-    </div>
+      <WinnerCelebrationDialog
+        state={celebrationState}
+        theme={theme}
+        confirming={effectiveStatus === "confirming"}
+        cancelling={effectiveStatus === "cancelling"}
+        onConfirm={confirmWinner}
+        onDrawAgain={drawAgain}
+        onContinue={() => { setLastWinner(null); setStatus("ready"); }}
+      />
+    </main>
   );
 }
 
 export default function EventRafflePage() {
   const { id } = useParams();
-  return <RoleGate>{({ user, logout }) => <RaffleShell key={JSON.stringify(getRaffleCacheKey(user.id, id))} eventId={id} user={user} logout={logout} />}</RoleGate>;
+  return <RoleGate>{({ user }) => <RafflePage key={`${user.id}:${id}`} eventSlug={id} userId={user.id} />}</RoleGate>;
 }

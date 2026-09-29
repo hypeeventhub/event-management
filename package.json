@@ -21,6 +21,7 @@
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "read-excel-file": "^9.3.10",
     "sweetalert2": "^11.26.25",
     "swr": "^2.5.1",
     "tailwind-merge": "^3.7.0",

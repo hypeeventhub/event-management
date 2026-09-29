@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BadgeCheck, Eye, FileSpreadsheet, LoaderCircle, UsersRound } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Eye, FileSpreadsheet, FileText, LoaderCircle, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import AnsweredFormsDialog from "@/components/dashboard/answered-forms-dialog";
 import api from "@/lib/api";
-import { buildAttendeeExportData } from "@/lib/attendee-export.mjs";
+import { buildAllRegistrantsCsv, buildAttendeeExportData } from "@/lib/attendee-export.mjs";
 
 async function getAttendeeData(id) {
   const [eventResponse, registrationsResponse] = await Promise.all([
@@ -30,12 +30,12 @@ export default function EventAttendeesPage() {
   const { id } = useParams();
   const { data, error, isLoading, mutate } = useSWR(id ? `/api/events/${id}/attendees` : null, () => getAttendeeData(id));
   const [checkingIn, setCheckingIn] = useState(null);
-  const [isExporting, setIsExporting] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState("");
   const [actionError, setActionError] = useState("");
   const [selectedRegistration, setSelectedRegistration] = useState(null);
 
   async function exportToExcel() {
-    setIsExporting(true);
+    setExportingFormat("excel");
     setActionError("");
 
     try {
@@ -55,7 +55,29 @@ export default function EventAttendeesPage() {
     } catch (requestError) {
       setActionError(requestError.response?.data?.message || "The Excel export could not be generated.");
     } finally {
-      setIsExporting(false);
+      setExportingFormat("");
+    }
+  }
+
+  async function exportToCsv() {
+    setExportingFormat("csv");
+    setActionError("");
+
+    try {
+      const { data: response } = await api.get(`/api/events/${id}/registrations/export`);
+      const safeTitle = data.event.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const exportData = buildAttendeeExportData(response.data, data.event.active_registration_form?.fields || []);
+      const file = new Blob([buildAllRegistrantsCsv(exportData)], { type: "text/csv;charset=utf-8" });
+      const downloadUrl = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${safeTitle || "event"}-all-registrants.csv`;
+      link.click();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.message || "The CSV export could not be generated.");
+    } finally {
+      setExportingFormat("");
     }
   }
 
@@ -90,10 +112,14 @@ export default function EventAttendeesPage() {
         <Button asChild variant="ghost" size="sm"><Link href="/"><ArrowLeft />Dashboard</Link></Button>
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div><p className="text-xs font-bold tracking-[0.08em] text-[#f6671e] uppercase">Registered attendees</p><h1 className="mt-1 text-3xl font-bold text-[#25170f]">{data.event.title}</h1><p className="mt-1 text-sm text-[#6f625b]">{data.total} total registration{data.total === 1 ? "" : "s"}</p></div>
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="secondary" onClick={exportToExcel} disabled={isExporting || data.total === 0}>
-              {isExporting ? <LoaderCircle className="animate-spin" /> : <FileSpreadsheet />}
-              {isExporting ? "Exporting..." : "Export Excel"}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="secondary" onClick={exportToExcel} disabled={Boolean(exportingFormat) || data.total === 0}>
+              {exportingFormat === "excel" ? <LoaderCircle className="animate-spin" /> : <FileSpreadsheet />}
+              {exportingFormat === "excel" ? "Exporting..." : "Export Excel"}
+            </Button>
+            <Button type="button" variant="secondary" onClick={exportToCsv} disabled={Boolean(exportingFormat) || data.total === 0}>
+              {exportingFormat === "csv" ? <LoaderCircle className="animate-spin" /> : <FileText />}
+              {exportingFormat === "csv" ? "Exporting..." : "Export CSV"}
             </Button>
             <div className="flex size-12 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]"><UsersRound className="size-6" /></div>
           </div>
