@@ -7,10 +7,12 @@ import {
   ExternalLink,
   Eye,
 } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getRaffleHref } from "@/lib/raffle-navigation.mjs";
 
 export const liveEvents = [
   {
@@ -21,7 +23,6 @@ export const liveEvents = [
     checkedIn: "1,864 / 2,287 Checked In (81.5%)",
     progress: 81.5,
     actions: [
-      { label: "Raffle", icon: Dice5, action: "raffle", variant: "amber" },
       { label: "Voting", icon: Trophy, action: "voting", variant: "secondary" },
       { label: "Edit Forms", icon: Pencil, action: "settings", variant: "" },
     ],
@@ -34,7 +35,6 @@ export const liveEvents = [
     checkedIn: "148 / 180 Checked In (82.2%)",
     progress: 82.2,
     actions: [
-      { label: "Raffle", icon: Dice5, action: "raffle", variant: "amber" },
       { label: "Voting", icon: Trophy, action: "voting", variant: "secondary" },
       { label: "Edit Forms", icon: Pencil, action: "settings", variant: "" },
     ],
@@ -102,7 +102,9 @@ function ProgressBar({ value }) {
   );
 }
 
-export function LiveEventCard({ event, onAction, onView }) {
+export function LiveEventCard({ event, onVoting, onView }) {
+  const raffleHref = getRaffleHref(event);
+
   return (
     <Card className="rounded-xl border border-[#ffdece]/45 p-4 shadow-[0_2px_8px_rgba(101,66,45,0.05)] hover:shadow-[0_8px_22px_rgba(101,66,45,0.09)]">
       <div className="flex items-start justify-between gap-3">
@@ -135,19 +137,20 @@ export function LiveEventCard({ event, onAction, onView }) {
               <Eye className="size-4" />
             </button>
           )}
+          {raffleHref && (
+            <Link
+              href={raffleHref}
+              className="flex size-8 items-center justify-center rounded-lg text-[#25170f] transition-colors hover:bg-[#ffdece] hover:text-[#f6671e] focus-visible:ring-2 focus-visible:ring-[#f6671e]/30 focus-visible:outline-none"
+              aria-label="Open raffle"
+              title="Raffle"
+            >
+              <Dice5 className="size-4" />
+            </Link>
+          )}
           <button
             type="button"
             className="flex size-8 items-center justify-center rounded-lg text-[#25170f] transition-colors hover:bg-[#ffdece] hover:text-[#f6671e] focus-visible:ring-2 focus-visible:ring-[#f6671e]/30 focus-visible:outline-none"
-            onClick={() => onAction("raffle")}
-            aria-label="Open raffle"
-            title="Raffle"
-          >
-            <Dice5 className="size-4" />
-          </button>
-          <button
-            type="button"
-            className="flex size-8 items-center justify-center rounded-lg text-[#25170f] transition-colors hover:bg-[#ffdece] hover:text-[#f6671e] focus-visible:ring-2 focus-visible:ring-[#f6671e]/30 focus-visible:outline-none"
-            onClick={() => onAction("voting")}
+            onClick={onVoting}
             aria-label="Open voting"
             title="Voting"
           >

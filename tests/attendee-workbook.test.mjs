@@ -13,7 +13,7 @@ test("creates workbook data for the three attendee worksheets", () => {
     sheets: [
       { name: "Attended", rows: [{ name: "Ana Santos", email: "ana@example.com", status: "confirmed" }] },
       { name: "Not Attended", rows: [{ name: "Ben Cruz", email: "ben@example.com", status: "confirmed" }] },
-      { name: "All Attendees", rows: [
+      { name: "All Registrants", rows: [
         { name: "Ana Santos", email: "ana@example.com", status: "confirmed" },
         { name: "Ben Cruz", email: "ben@example.com", status: "confirmed" },
       ] },
@@ -23,7 +23,7 @@ test("creates workbook data for the three attendee worksheets", () => {
   assert.deepEqual(sheets.map((sheet) => sheet.sheet), [
     "Attended",
     "Not Attended",
-    "All Attendees",
+    "All Registrants",
   ]);
   assert.deepEqual(sheets[0].data[0].map((cell) => cell.value), ["Name", "Email", "Status"]);
   assert.equal(sheets[2].data[2][0].value, "Ben Cruz");
@@ -35,7 +35,7 @@ test("writes registration dates using the event timezone wall time", () => {
     sheets: [
       { name: "Attended", rows: [{ registered_at: "2026-09-24T08:30:00.000Z" }] },
       { name: "Not Attended", rows: [] },
-      { name: "All Attendees", rows: [{ registered_at: "2026-09-24T08:30:00.000Z" }] },
+      { name: "All Registrants", rows: [{ registered_at: "2026-09-24T08:30:00.000Z" }] },
     ],
   }, "Asia/Manila");
   const exportedDate = sheets[0].data[1][0].value;

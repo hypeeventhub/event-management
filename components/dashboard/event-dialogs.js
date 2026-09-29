@@ -3,7 +3,6 @@ import {
   BadgeCheck,
   CheckCircle2,
   CircleAlert,
-  PartyPopper,
   QrCode,
   ScanQrCode,
   Settings2,
@@ -175,33 +174,6 @@ function VotingPanel({ onToast }) {
   );
 }
 
-function RafflePanel({ onToast }) {
-  const [winner, setWinner] = useState("Ready for Random Roll");
-
-  return (
-    <div className="flex flex-col items-center space-y-4 text-center">
-      <div className="w-full rounded-2xl bg-[#fff4ee] p-6">
-        <span className="text-[11px] font-semibold text-[#684000] uppercase">
-          Grand Prize: Leadership Summit Trip
-        </span>
-        <div className={cn("my-4 text-2xl leading-8 font-bold", winner.includes("Li Wei") ? "text-[#006c49]" : "text-[#25170f]")}>
-          {winner}
-        </div>
-        <Button
-          type="button"
-          variant="success"
-          onClick={() => {
-            setWinner("🎉 Li Wei (NX-91283)");
-            onToast("Raffle Winner Selected!", "Li Wei selected from verified guests.");
-          }}
-        >
-          Draw Verified Winner
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function SettingsPanel({ onToast }) {
   return (
     <div className="space-y-4">
@@ -265,12 +237,6 @@ const dialogDetails = {
     description: "Real-time audience voting tally and star leaderboard",
     status: "Total Ballots Cast: 1,498 / 1,864 present",
   },
-  raffle: {
-    icon: PartyPopper,
-    title: "Live Stage Raffle Draw Simulator",
-    description: "Random draw filtered strictly to checked-in attendees",
-    status: "Eligible Attended Pool: 1,864 unique badges",
-  },
   settings: {
     icon: Settings2,
     title: "Client Admin & Event Setup",
@@ -295,7 +261,6 @@ export function OperationDialog({ type, onOpenChange, onToast }) {
           {type === "scanner" && <ScannerPanel onToast={onToast} />}
           {type === "pass" && <PassPanel onToast={onToast} />}
           {type === "voting" && <VotingPanel onToast={onToast} />}
-          {type === "raffle" && <RafflePanel onToast={onToast} />}
           {type === "settings" && <SettingsPanel onToast={onToast} />}
         </div>
       </DialogContent>

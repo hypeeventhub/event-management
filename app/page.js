@@ -232,7 +232,7 @@ function EventDashboard({ onLogout, user }) {
                       <LiveEventCard
                         key={event.id}
                         event={event}
-                        onAction={setOperationType}
+                        onVoting={() => setOperationType("voting")}
                         onView={() => {
                           setInvitationMode("view");
                           setInvitationEvent(event);

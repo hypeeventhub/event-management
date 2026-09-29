@@ -46,7 +46,7 @@ test("builds separate attended, not attended, and all attendee worksheet rows", 
   assert.deepEqual(result.sheets[0].rows.map((row) => row.name), ["Ana Santos"]);
   assert.equal(result.sheets[1].name, "Not Attended");
   assert.deepEqual(result.sheets[1].rows.map((row) => row.name), ["Ben Cruz"]);
-  assert.equal(result.sheets[2].name, "All Attendees");
+  assert.equal(result.sheets[2].name, "All Registrants");
   assert.deepEqual(result.sheets[2].rows.map((row) => row.name), ["Ana Santos", "Ben Cruz"]);
 });
 
