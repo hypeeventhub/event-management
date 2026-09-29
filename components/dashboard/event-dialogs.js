@@ -7,7 +7,6 @@ import {
   ScanQrCode,
   Settings2,
   ShieldCheck,
-  Vote,
   XCircle,
 } from "lucide-react";
 
@@ -146,34 +145,6 @@ function PassPanel({ onToast }) {
   );
 }
 
-function VotingPanel({ onToast }) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3 rounded-xl bg-[#fff4ee] p-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-[#f6671e]">#1</span>
-          <div>
-            <div className="text-xs font-bold text-[#25170f]">Sophia Lauren (Global Ops)</div>
-            <span className="text-xs text-[#6f625b]">Innovation Champion</span>
-          </div>
-        </div>
-        <div className="text-right">
-          <span className="text-sm font-bold text-[#006c49]">642 votes</span>
-          <span className="block text-[11px] text-[#6f625b]">42.8%</span>
-        </div>
-      </div>
-      <Button
-        type="button"
-        variant="amber"
-        className="w-full"
-        onClick={() => onToast("Voting Lock Engaged", "Stage balloting locked. Finalizing results!")}
-      >
-        Close Voting & Lock Results
-      </Button>
-    </div>
-  );
-}
-
 function SettingsPanel({ onToast }) {
   return (
     <div className="space-y-4">
@@ -231,12 +202,6 @@ const dialogDetails = {
     description: "Attendee self-registration preview with dynamic QR payload",
     status: "Cryptographic Signature: SHA-256 Valid",
   },
-  voting: {
-    icon: Vote,
-    title: "Star of the Night Voting Portal",
-    description: "Real-time audience voting tally and star leaderboard",
-    status: "Total Ballots Cast: 1,498 / 1,864 present",
-  },
   settings: {
     icon: Settings2,
     title: "Client Admin & Event Setup",
@@ -260,7 +225,6 @@ export function OperationDialog({ type, onOpenChange, onToast }) {
         <div className="p-6 sm:p-8">
           {type === "scanner" && <ScannerPanel onToast={onToast} />}
           {type === "pass" && <PassPanel onToast={onToast} />}
-          {type === "voting" && <VotingPanel onToast={onToast} />}
           {type === "settings" && <SettingsPanel onToast={onToast} />}
         </div>
       </DialogContent>

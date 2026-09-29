@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getRaffleHref } from "@/lib/raffle-navigation.mjs";
+import { getVotingHref } from "@/lib/voting-navigation.mjs";
 
 export const liveEvents = [
   {
@@ -102,8 +103,9 @@ function ProgressBar({ value }) {
   );
 }
 
-export function LiveEventCard({ event, onVoting, onView }) {
+export function LiveEventCard({ event, onView }) {
   const raffleHref = getRaffleHref(event);
+  const votingHref = getVotingHref(event);
 
   return (
     <Card className="rounded-xl border border-[#ffdece]/45 p-4 shadow-[0_2px_8px_rgba(101,66,45,0.05)] hover:shadow-[0_8px_22px_rgba(101,66,45,0.09)]">
@@ -147,15 +149,16 @@ export function LiveEventCard({ event, onVoting, onView }) {
               <Dice5 className="size-4" />
             </Link>
           )}
-          <button
-            type="button"
-            className="flex size-8 items-center justify-center rounded-lg text-[#25170f] transition-colors hover:bg-[#ffdece] hover:text-[#f6671e] focus-visible:ring-2 focus-visible:ring-[#f6671e]/30 focus-visible:outline-none"
-            onClick={onVoting}
-            aria-label="Open voting"
-            title="Voting"
-          >
-            <Trophy className="size-4" />
-          </button>
+          {votingHref && (
+            <Link
+              href={votingHref}
+              className="flex size-8 items-center justify-center rounded-lg text-[#25170f] transition-colors hover:bg-[#ffdece] hover:text-[#f6671e] focus-visible:ring-2 focus-visible:ring-[#f6671e]/30 focus-visible:outline-none"
+              aria-label="Open voting"
+              title="Voting"
+            >
+              <Trophy className="size-4" />
+            </Link>
+          )}
           {event.sourceId && (
             <a
               href={`/events/${event.sourceId}/attendees`}

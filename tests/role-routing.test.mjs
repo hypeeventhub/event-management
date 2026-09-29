@@ -35,3 +35,12 @@ test("admins receive scanner navigation while scanner accounts remain limited", 
   ]);
   assert.deepEqual(getNavigationForRole("Operator"), []);
 });
+
+test("only admins can access voting administration and nested leaderboards", () => {
+  assert.equal(canAccessRoute("Admin", "/events/gala/voting"), true);
+  assert.equal(canAccessRoute("Admin", "/events/gala/voting/award/leaderboard"), true);
+  assert.equal(canAccessRoute("Admin", "/events/gala/voting/award/leaderboard/extra"), false);
+  assert.equal(canAccessRoute("Scanner", "/events/gala/voting"), false);
+  assert.equal(canAccessRoute("Scanner", "/events/gala/voting/award/leaderboard"), false);
+  assert.equal(canAccessRoute("Operator", "/events/gala/voting"), false);
+});

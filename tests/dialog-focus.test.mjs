@@ -24,3 +24,25 @@ test("closing after a row is deleted focuses Add Scanner", () => {
 
   assert.deepEqual(calls, ["prevent default", "Add Scanner"]);
 });
+
+test("closing a voting confirmation while its action is disabled focuses the stable page control", () => {
+  const calls = [];
+  restoreDialogFocus(
+    { preventDefault: () => calls.push("prevent default") },
+    { isConnected: true, disabled: true, focus: () => calls.push("disabled action") },
+    { isConnected: true, focus: () => calls.push("page control") },
+  );
+  assert.deepEqual(calls, ["prevent default", "page control"]);
+});
+
+test("closing after the voting page unmounts does not focus a detached or disabled fallback", () => {
+  for (const fallback of [{ isConnected: false }, { isConnected: true, disabled: true }]) {
+    const calls = [];
+    restoreDialogFocus(
+      { preventDefault: () => calls.push("prevent default") },
+      null,
+      { ...fallback, focus: () => calls.push("fallback") },
+    );
+    assert.deepEqual(calls, []);
+  }
+});

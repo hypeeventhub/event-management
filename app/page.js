@@ -14,7 +14,7 @@ import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 
 import LoginScreen from "@/components/auth/login-screen";
-import { CreateEventDialog, OperationDialog } from "@/components/dashboard/event-dialogs";
+import { CreateEventDialog } from "@/components/dashboard/event-dialogs";
 import { LiveEventCard, UpcomingEventCard } from "@/components/dashboard/event-cards";
 import { InvitationDialog } from "@/components/dashboard/invitation-dialog";
 import { Sidebar } from "@/components/dashboard/sidebar";
@@ -74,7 +74,6 @@ function EventDashboard({ onLogout, user }) {
   const [editingEvent, setEditingEvent] = useState(null);
   const [invitationEvent, setInvitationEvent] = useState(null);
   const [invitationMode, setInvitationMode] = useState("published");
-  const [operationType, setOperationType] = useState(null);
   const [toast, setToast] = useState(null);
   const { events, error: eventsError, isLoading: eventsLoading, createEvent, updateEvent } = useEvents();
 
@@ -232,7 +231,6 @@ function EventDashboard({ onLogout, user }) {
                       <LiveEventCard
                         key={event.id}
                         event={event}
-                        onVoting={() => setOperationType("voting")}
                         onView={() => {
                           setInvitationMode("view");
                           setInvitationEvent(event);
@@ -291,7 +289,6 @@ function EventDashboard({ onLogout, user }) {
         onCreated={handleEventCreated}
         initialEvent={editingEvent?.editData}
       />
-      <OperationDialog type={operationType} onOpenChange={setOperationType} onToast={showToast} />
       <InvitationDialog
         event={invitationEvent}
         mode={invitationMode}
