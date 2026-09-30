@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const checkIn = await import("../lib/check-in.mjs").catch(() => ({}));
@@ -57,4 +58,14 @@ test("maps camera error kinds to actionable guidance", () => {
   assert.match(checkIn.getCameraErrorMessage({ kind: "in-use" }), /another app or browser tab/i);
   assert.match(checkIn.getCameraErrorMessage({ kind: "insecure-context" }), /https or localhost/i);
   assert.match(checkIn.getCameraErrorMessage({ kind: "unsupported" }), /does not support/i);
+});
+
+test("renders the open camera preview above the event selection card", async () => {
+  const source = await readFile(new URL("../app/scanner/page.js", import.meta.url), "utf8");
+  const cameraCard = source.indexOf("{cameraOpen && (");
+  const eventSelection = source.indexOf('<label htmlFor="scanner-event"');
+
+  assert.notEqual(cameraCard, -1);
+  assert.notEqual(eventSelection, -1);
+  assert.ok(cameraCard < eventSelection, "camera preview should appear before event selection in the page layout");
 });

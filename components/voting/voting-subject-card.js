@@ -28,7 +28,7 @@ export function VotingSubjectCard({ subject, eventSlug, busyAction, onEdit, onCo
       <div className="flex flex-wrap gap-2 border-t border-[#ffdece] bg-[#fffaf7] p-4 sm:px-6">
         {actions.includes("edit") && <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={(event) => onEdit(subject, event.currentTarget)}><Pencil /> Edit</Button>}
         {actions.includes("activate") && <Button type="button" size="sm" disabled={busy} onClick={(event) => onConfirm(subject, "activate", event.currentTarget)}><Radio /> {busyAction === "activate" ? "Activating..." : "Activate"}</Button>}
-        {actions.includes("close") && <Button type="button" size="sm" variant="amber" disabled={busy} onClick={(event) => onConfirm(subject, "close", event.currentTarget)}><Check /> {busyAction === "close" ? "Closing..." : "Close voting"}</Button>}
+        {actions.includes("close") && <Button type="button" size="sm" disabled={busy} onClick={(event) => onConfirm(subject, "close", event.currentTarget)}><Check /> {busyAction === "close" ? "Closing..." : "Close voting"}</Button>}
         {actions.includes("delete") && <Button type="button" size="sm" variant="ghost" className="text-[#ba1a1a]" disabled={busy} onClick={(event) => onConfirm(subject, "delete", event.currentTarget)}><Trash2 /> {busyAction === "delete" ? "Deleting..." : "Delete"}</Button>}
         {actions.includes("qr") && <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={(event) => onQr(subject, event.currentTarget)}><QrCode /> QR code</Button>}
         {actions.includes("leaderboard") && <Button asChild size="sm" variant="ghost"><Link href={leaderboardHref}><BarChart3 /> Leaderboard</Link></Button>}

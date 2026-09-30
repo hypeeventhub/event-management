@@ -94,9 +94,8 @@ function RafflePage({ eventSlug, userId }) {
 
       <div className="flex flex-1 flex-col items-center justify-center">
         <NamePicker entries={data.entries} selectedEntry={effectiveEntry || lastWinner} spinning={effectiveStatus === "spinning"} speed={data.settings.speed} onAnimationEnd={finishAnimation} />
-        <p className="mb-7 text-sm text-white/70">{data.entries.length.toLocaleString()} name{data.entries.length === 1 ? "" : "s"} in this event</p>
         <div className="flex min-h-24 flex-wrap items-center justify-center gap-3 px-4">
-          {!celebrationState.open && <button type="button" disabled={busy || data.entries.length === 0} onClick={startDraw} className="flex items-center gap-2 rounded-full px-10 py-5 text-xl font-black text-[#382054] shadow-xl disabled:opacity-50" style={{ background: theme.accent }}>{effectiveStatus === "drawing" || effectiveStatus === "spinning" ? <LoaderCircle className="animate-spin" /> : <Play className="fill-current" />}{effectiveStatus === "drawing" ? "Choosing..." : effectiveStatus === "spinning" ? "Picking..." : "Pick a Name"}</button>}
+          {!celebrationState.open && <button type="button" disabled={busy || data.entries.length === 0} onClick={startDraw} className="flex items-center gap-2 rounded-full px-10 py-5 text-xl font-black text-[#382054] shadow-xl disabled:opacity-50" style={{ background: theme.accent }}>{effectiveStatus === "drawing" || effectiveStatus === "spinning" ? <LoaderCircle className="animate-spin" /> : null}{effectiveStatus === "drawing" ? "Choosing..." : effectiveStatus === "spinning" ? "Picking..." : "Pick a Name"}</button>}
         </div>
       </div>
       <WinnerCelebrationDialog

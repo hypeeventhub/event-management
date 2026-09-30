@@ -160,13 +160,13 @@ function RegistrationConfirmation({ confirmation, event }) {
 
           <div
             role="status"
-            className={confirmation.emailSent
+            className={confirmation.emailQueued
               ? "rounded-xl bg-[#e6f8ef] px-4 py-3 text-sm text-[#006c49]"
               : "rounded-xl bg-[#fff0ed] px-4 py-3 text-sm text-[#a5261d]"}
           >
-            {confirmation.emailSent
-              ? `A copy of this QR pass was emailed to ${registration.attendee.email}.`
-              : "The QR email could not be delivered. Download and save this pass now."}
+            {confirmation.emailQueued
+              ? `A copy of this QR pass is queued to be emailed to ${registration.attendee.email}.`
+              : "The QR email could not be queued. Download and save this pass now."}
           </div>
 
           <Button type="button" className="w-full" onClick={downloadQrCode} disabled={!qrDataUrl}>
@@ -198,7 +198,7 @@ export default function EventRegistrationPage() {
 
     try {
       const { data } = await api.post(`/api/registration/events/${slug}`, { answers });
-      setConfirmation({ registration: data.data, emailSent: data.email_sent });
+      setConfirmation({ registration: data.data, emailQueued: data.email_queued });
     } catch (requestError) {
       const errors = requestError.response?.data?.errors;
       setSubmitError(

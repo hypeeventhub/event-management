@@ -116,6 +116,24 @@ function ScannerShell({ user, logout }) {
               <p className="mt-2 text-sm text-[#6f625b]">Scan an attendee QR pass or enter its registration code manually.</p>
             </div>
 
+            {cameraOpen && (
+              <Card className="border border-[#ffdece]">
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-2 font-semibold"><ScanLine className="text-[#f6671e]" /> Point the camera at the attendee QR</div>
+                  <CameraScanner key={cameraKey} paused={shouldPauseCamera({ submitting, scannedCode, modalOpen: Boolean(feedback?.modal) })} onCode={(value) => submitCode(value, "camera")} onError={(failure) => setCameraError(getCameraErrorMessage(failure))} />
+                  {cameraError && (
+                    <div role="alert" className="space-y-3 rounded-xl bg-[#fff0ee] p-4 text-sm text-[#93000a]">
+                      <p>{cameraError}</p>
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" variant="secondary" onClick={() => { setCameraError(""); setCameraKey((key) => key + 1); }}>Try again</Button>
+                        <Button type="button" size="sm" variant="ghost" onClick={() => { setCameraOpen(false); setScannedCode(""); }}>Close camera</Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="border border-[#ffdece]">
               <CardContent className="space-y-5">
                 <div>
@@ -161,24 +179,6 @@ function ScannerShell({ user, logout }) {
                 </div>
               </CardContent>
             </Card>
-
-            {cameraOpen && (
-              <Card className="border border-[#ffdece]">
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2 font-semibold"><ScanLine className="text-[#f6671e]" /> Point the camera at the attendee QR</div>
-                  <CameraScanner key={cameraKey} paused={shouldPauseCamera({ submitting, scannedCode, modalOpen: Boolean(feedback?.modal) })} onCode={(value) => submitCode(value, "camera")} onError={(failure) => setCameraError(getCameraErrorMessage(failure))} />
-                  {cameraError && (
-                    <div role="alert" className="space-y-3 rounded-xl bg-[#fff0ee] p-4 text-sm text-[#93000a]">
-                      <p>{cameraError}</p>
-                      <div className="flex gap-2">
-                        <Button type="button" size="sm" variant="secondary" onClick={() => { setCameraError(""); setCameraKey((key) => key + 1); }}>Try again</Button>
-                        <Button type="button" size="sm" variant="ghost" onClick={() => { setCameraOpen(false); setScannedCode(""); }}>Close camera</Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
 
             {feedback && !feedback.modal && (
               <div role="status" className={`flex items-start gap-3 rounded-2xl border p-5 ${feedbackStyles[feedback.tone]}`}>

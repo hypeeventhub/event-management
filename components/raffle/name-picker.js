@@ -35,7 +35,7 @@ export function NamePicker({ entries, selectedEntry, spinning, speed, onAnimatio
 
   return (
     <div className="flex min-h-[48vh] w-full items-center justify-center px-5 text-center" aria-live="polite">
-      <p className={`max-w-5xl break-words text-5xl font-black tracking-tight text-white drop-shadow-lg sm:text-7xl lg:text-8xl ${spinning ? "animate-pulse" : ""}`}>
+      <p className={`max-w-5xl break-words text-5xl font-black tracking-tight text-white drop-shadow-lg sm:text-7xl lg:text-[11rem] ${spinning ? "animate-pulse" : ""}`}>
         {shownName}
       </p>
     </div>
