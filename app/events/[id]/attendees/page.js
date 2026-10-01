@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowLeft, BadgeCheck, Eye, FileSpreadsheet, FileText, LoaderCircle, UsersRound } from "lucide-react";
+import { ArrowLeft, BadgeCheck, ChevronLeft, ChevronRight, Eye, FileSpreadsheet, FileText, LoaderCircle, Search, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,26 +13,73 @@ import AnsweredFormsDialog from "@/components/dashboard/answered-forms-dialog";
 import api from "@/lib/api";
 import { buildAllRegistrantsCsv, buildAttendeeExportData } from "@/lib/attendee-export.mjs";
 
-async function getAttendeeData(id) {
-  const [eventResponse, registrationsResponse] = await Promise.all([
-    api.get(`/api/events/${id}`),
-    api.get(`/api/events/${id}/registrations`),
-  ]);
-
-  return {
-    event: eventResponse.data.data,
-    registrations: registrationsResponse.data.data,
-    total: registrationsResponse.data.total,
-  };
-}
-
 export default function EventAttendeesPage() {
   const { id } = useParams();
-  const { data, error, isLoading, mutate } = useSWR(id ? `/api/events/${id}/attendees` : null, () => getAttendeeData(id));
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [checkInFilter, setCheckInFilter] = useState("all");
+  const [sort, setSort] = useState("registered_at:desc");
+  const [perPage, setPerPage] = useState(50);
+  const [page, setPage] = useState(1);
   const [checkingIn, setCheckingIn] = useState(null);
   const [exportingFormat, setExportingFormat] = useState("");
   const [actionError, setActionError] = useState("");
   const [selectedRegistration, setSelectedRegistration] = useState(null);
+  const [sortBy, sortDirection] = sort.split(":");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => window.clearTimeout(timeout);
+  }, [searchInput]);
+
+  const query = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+    sort_by: sortBy,
+    sort_direction: sortDirection,
+  });
+  if (search) query.set("search", search);
+  if (statusFilter !== "all") query.set("status", statusFilter);
+  if (checkInFilter !== "all") query.set("check_in", checkInFilter);
+
+  const { data: event, error: eventError, isLoading: eventLoading } = useSWR(
+    id ? `/api/events/${id}` : null,
+    (url) => api.get(url).then((response) => response.data.data),
+  );
+  const registrationsKey = id ? `/api/events/${id}/registrations?${query.toString()}` : null;
+  const {
+    data: registrationPage,
+    error: registrationsError,
+    isLoading: registrationsLoading,
+    isValidating: registrationsValidating,
+    mutate: mutateRegistrations,
+  } = useSWR(
+    registrationsKey,
+    (url) => api.get(url).then((response) => response.data),
+    { keepPreviousData: true },
+  );
+  const data = event && registrationPage ? {
+    event,
+    registrations: registrationPage.data,
+    total: registrationPage.all_total ?? event.registrations_count ?? registrationPage.total,
+  } : null;
+  const error = eventError || registrationsError;
+  const isLoading = eventLoading || (registrationsLoading && !registrationPage);
+  const resultCount = registrationPage?.total ?? 0;
+  const lastPage = registrationPage?.last_page ?? 1;
+  const currentPage = registrationPage?.current_page ?? page;
+  const hasFilters = Boolean(search || statusFilter !== "all" || checkInFilter !== "all");
+
+  useEffect(() => {
+    if (registrationPage && page > registrationPage.last_page) {
+      setPage(Math.max(1, registrationPage.last_page));
+    }
+  }, [page, registrationPage]);
+
+  function resetToFirstPage() {
+    setPage(1);
+  }
 
   async function exportToExcel() {
     setExportingFormat("excel");
@@ -90,7 +137,7 @@ export default function EventAttendeesPage() {
         registration_code: registration.registration_code,
         gate: "Dashboard",
       });
-      await mutate();
+      await mutateRegistrations();
     } catch (requestError) {
       setActionError(requestError.response?.data?.message || "The attendee could not be checked in.");
     } finally {
@@ -127,9 +174,50 @@ export default function EventAttendeesPage() {
 
         {actionError && <div role="alert" className="rounded-xl bg-[#ffdad6] px-4 py-3 text-sm font-medium text-[#93000a]">{actionError}</div>}
 
+        <Card className="border border-[#ffdece] p-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.5fr)_repeat(3,minmax(10rem,1fr))]">
+            <label className="relative block">
+              <span className="sr-only">Search attendees</span>
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#96877f]" />
+              <input
+                value={searchInput}
+                onChange={(event) => {
+                  setSearchInput(event.target.value);
+                  resetToFirstPage();
+                }}
+                placeholder="Search name, email, or code"
+                className="h-10 w-full rounded-lg border border-[#ffdece] bg-white pr-10 pl-9 text-sm text-[#25170f] outline-none placeholder:text-[#96877f] focus:border-[#f6671e] focus:ring-2 focus:ring-[#f6671e]/15"
+              />
+              {searchInput && <button type="button" onClick={() => { setSearchInput(""); setSearch(""); resetToFirstPage(); }} aria-label="Clear search" className="absolute top-1/2 right-3 -translate-y-1/2 text-[#96877f] hover:text-[#25170f]"><X className="size-4" /></button>}
+            </label>
+            <label className="text-xs font-semibold text-[#6f625b]">
+              <span className="sr-only">Registration status</span>
+              <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); resetToFirstPage(); }} className="h-10 w-full rounded-lg border border-[#ffdece] bg-white px-3 text-sm font-normal text-[#25170f] outline-none focus:border-[#f6671e] focus:ring-2 focus:ring-[#f6671e]/15">
+                <option value="all">All statuses</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="rejected">Rejected</option>
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-[#6f625b]">
+              <span className="sr-only">Check-in status</span>
+              <select value={checkInFilter} onChange={(event) => { setCheckInFilter(event.target.value); resetToFirstPage(); }} className="h-10 w-full rounded-lg border border-[#ffdece] bg-white px-3 text-sm font-normal text-[#25170f] outline-none focus:border-[#f6671e] focus:ring-2 focus:ring-[#f6671e]/15">
+                <option value="all">All check-ins</option><option value="checked_in">Checked in</option><option value="not_checked_in">Not checked in</option>
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-[#6f625b]">
+              <span className="sr-only">Sort attendees</span>
+              <select value={sort} onChange={(event) => { setSort(event.target.value); resetToFirstPage(); }} className="h-10 w-full rounded-lg border border-[#ffdece] bg-white px-3 text-sm font-normal text-[#25170f] outline-none focus:border-[#f6671e] focus:ring-2 focus:ring-[#f6671e]/15">
+                <option value="registered_at:desc">Newest registered</option><option value="registered_at:asc">Oldest registered</option><option value="name:asc">Name A–Z</option><option value="name:desc">Name Z–A</option><option value="status:asc">Status A–Z</option><option value="status:desc">Status Z–A</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[#6f625b]">
+            <p>{hasFilters ? `${resultCount} matching registration${resultCount === 1 ? "" : "s"}` : `${resultCount} registration${resultCount === 1 ? "" : "s"}`} {registrationsValidating && <span className="ml-1 text-[#f6671e]">Updating…</span>}</p>
+            {hasFilters && <Button type="button" variant="ghost" size="sm" onClick={() => { setSearchInput(""); setSearch(""); setStatusFilter("all"); setCheckInFilter("all"); resetToFirstPage(); }}>Clear filters</Button>}
+          </div>
+        </Card>
+
         <Card className="overflow-hidden border border-[#ffdece]">
           {data.registrations.length === 0 ? (
-            <div className="p-12 text-center text-sm text-[#6f625b]">No one has registered for this event yet.</div>
+            <div className="p-12 text-center text-sm text-[#6f625b]">{hasFilters ? "No attendees match these filters." : "No one has registered for this event yet."}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[62rem] border-collapse text-left text-sm">
@@ -146,6 +234,18 @@ export default function EventAttendeesPage() {
             </div>
           )}
         </Card>
+
+        {resultCount > 0 && <div className="flex flex-col justify-between gap-3 text-sm text-[#6f625b] sm:flex-row sm:items-center">
+          <p>Showing {registrationPage.from ?? 0}–{registrationPage.to ?? 0} of {resultCount}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2">Rows per page<select value={perPage} onChange={(event) => { setPerPage(Number(event.target.value)); resetToFirstPage(); }} className="h-9 rounded-lg border border-[#ffdece] bg-white px-2 text-[#25170f] outline-none focus:border-[#f6671e]"><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label>
+            <span>Page {currentPage} of {lastPage}</span>
+            <div className="flex gap-2">
+              <Button type="button" size="icon" variant="secondary" aria-label="Previous page" title="Previous page" disabled={currentPage <= 1 || registrationsValidating} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft /></Button>
+              <Button type="button" size="icon" variant="secondary" aria-label="Next page" title="Next page" disabled={currentPage >= lastPage || registrationsValidating} onClick={() => setPage((value) => Math.min(lastPage, value + 1))}><ChevronRight /></Button>
+            </div>
+          </div>
+        </div>}
       </div>
 
       <AnsweredFormsDialog
