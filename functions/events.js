@@ -90,6 +90,7 @@ function toEventCard(event) {
     progressLabel: "Live Attendance",
     checkedIn: `${checkedIn} / ${registered} Checked In (${Math.round(attendanceProgress)}%)`,
     isLive,
+    registrationIsOpen: event.registration_is_open !== false,
     registrationForm: event.active_registration_form,
     editData: {
       details: {
@@ -145,12 +146,25 @@ export function useEvents() {
     return toEventCard(updatedEvent);
   };
 
+  const updateRegistrationOpen = async (eventSlug, isOpen) => {
+    const { data: response } = await api.patch(`/api/events/${eventSlug}/registration`, { is_open: isOpen });
+    const updatedEvent = response.data;
+
+    await mutate(
+      (current = []) => current.map((item) => item.slug === updatedEvent.slug ? updatedEvent : item),
+      { revalidate: false },
+    );
+
+    return toEventCard(updatedEvent);
+  };
+
   return {
     events: (data || []).map(toEventCard),
     error,
     isLoading,
     createEvent,
     updateEvent,
+    updateRegistrationOpen,
     refresh: mutate,
   };
 }

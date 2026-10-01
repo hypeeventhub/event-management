@@ -6,6 +6,9 @@ import {
   UsersRound,
   ExternalLink,
   Eye,
+  LoaderCircle,
+  LockKeyhole,
+  LockOpen,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -103,7 +106,7 @@ function ProgressBar({ value }) {
   );
 }
 
-export function LiveEventCard({ event, onView }) {
+export function LiveEventCard({ event, onView, onRegistrationToggle, registrationBusy = false }) {
   const raffleHref = getRaffleHref(event);
   const votingHref = getVotingHref(event);
 
@@ -188,12 +191,25 @@ export function LiveEventCard({ event, onView }) {
           <span className="font-semibold text-[#f6671e]">{event.checkedIn}</span>
         </div>
         <ProgressBar value={event.progress} />
+        {event.sourceId && (
+          <Button
+            type="button"
+            size="sm"
+            variant={event.registrationIsOpen ? "secondary" : "default"}
+            disabled={registrationBusy}
+            onClick={onRegistrationToggle}
+            aria-label={`${event.registrationIsOpen ? "Close" : "Open"} registration for ${event.title}`}
+          >
+            {registrationBusy ? <LoaderCircle className="animate-spin" /> : event.registrationIsOpen ? <LockKeyhole /> : <LockOpen />}
+            {event.registrationIsOpen ? "Close registration" : "Open registration"}
+          </Button>
+        )}
       </div>
     </Card>
   );
 }
 
-export function UpcomingEventCard({ event, onEdit, onView }) {
+export function UpcomingEventCard({ event, onEdit, onView, onRegistrationToggle, registrationBusy = false }) {
   return (
     <Card className="flex min-h-60 flex-col justify-between space-y-4 p-4 sm:p-6">
       <div className="space-y-2">
@@ -219,6 +235,17 @@ export function UpcomingEventCard({ event, onEdit, onView }) {
 
       <div className="flex flex-col justify-between gap-2 border-t border-[#ffdece]/60 pt-3 min-[420px]:flex-row min-[420px]:items-center">
         <div className="flex flex-wrap items-center gap-1.5">
+          <Button
+            type="button"
+            size="sm"
+            variant={event.registrationIsOpen ? "secondary" : "default"}
+            disabled={registrationBusy}
+            onClick={onRegistrationToggle}
+            aria-label={`${event.registrationIsOpen ? "Close" : "Open"} registration for ${event.title}`}
+          >
+            {registrationBusy ? <LoaderCircle className="animate-spin" /> : event.registrationIsOpen ? <LockKeyhole /> : <LockOpen />}
+            {event.registrationIsOpen ? "Close registration" : "Open registration"}
+          </Button>
           {event.sourceId && (
             <Button asChild variant="secondary" size="sm">
               <a href={`/register/${event.id}`} target="_blank" rel="noreferrer">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Download, LoaderCircle, QrCode } from "lucide-react";
+import { CheckCircle2, Download, LoaderCircle, LockKeyhole, QrCode } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import QRCode from "qrcode";
@@ -221,6 +221,22 @@ export default function EventRegistrationPage() {
 
   if (confirmation) {
     return <RegistrationConfirmation confirmation={confirmation} event={event} />;
+  }
+
+  if (event.registration_is_open === false) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#fffaf7] p-4">
+        <Card className="w-full max-w-lg border border-[#ffdece] text-center">
+          <CardContent className="space-y-4 p-6 sm:p-8">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#fff4ee] text-[#f6671e]"><LockKeyhole className="size-7" /></div>
+            <div>
+              <h1 className="text-2xl font-bold text-[#25170f]">Registration is closed</h1>
+              <p className="mt-2 text-sm text-[#6f625b]">Registration for {event.title} is currently closed by the event organizer.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    );
   }
 
   const form = event.active_registration_form;

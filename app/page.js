@@ -75,7 +75,9 @@ function EventDashboard({ onLogout, user }) {
   const [invitationEvent, setInvitationEvent] = useState(null);
   const [invitationMode, setInvitationMode] = useState("published");
   const [toast, setToast] = useState(null);
-  const { events, error: eventsError, isLoading: eventsLoading, createEvent, updateEvent } = useEvents();
+  const { events, error: eventsError, isLoading: eventsLoading, createEvent, updateEvent, updateRegistrationOpen } = useEvents();
+  const [registrationBusySlug, setRegistrationBusySlug] = useState(null);
+  const [registrationActionError, setRegistrationActionError] = useState("");
 
   useEffect(() => {
     if (!toast) return;
@@ -101,6 +103,23 @@ function EventDashboard({ onLogout, user }) {
 
   function showToast(title, description) {
     setToast({ title, description });
+  }
+
+  async function handleRegistrationToggle(event) {
+    setRegistrationBusySlug(event.sourceId);
+    setRegistrationActionError("");
+
+    try {
+      await updateRegistrationOpen(event.sourceId, !event.registrationIsOpen);
+      showToast(
+        event.registrationIsOpen ? "Registration Closed" : "Registration Opened",
+        `${event.title} registration is now ${event.registrationIsOpen ? "closed" : "open"}.`,
+      );
+    } catch (error) {
+      setRegistrationActionError(getApiErrorMessage(error, "Registration availability could not be changed."));
+    } finally {
+      setRegistrationBusySlug(null);
+    }
   }
 
   async function handleEventCreated(event) {
@@ -172,6 +191,8 @@ function EventDashboard({ onLogout, user }) {
               ))}
             </section>
 
+            {registrationActionError && <div role="alert" className="rounded-xl bg-[#ffdad6] px-4 py-3 text-sm font-medium text-[#93000a]">{registrationActionError}</div>}
+
             <section className="flex flex-col justify-between gap-4 rounded-2xl bg-white p-2 shadow-[0_1px_3px_rgba(40,48,68,0.08)] min-[1400px]:flex-row min-[1400px]:items-center">
               <div className="grid grid-cols-1 gap-1 rounded-xl bg-[#fff4ee] p-1 sm:grid-cols-2">
                 <button
@@ -231,6 +252,8 @@ function EventDashboard({ onLogout, user }) {
                       <LiveEventCard
                         key={event.id}
                         event={event}
+                        onRegistrationToggle={() => handleRegistrationToggle(event)}
+                        registrationBusy={registrationBusySlug === event.sourceId}
                         onView={() => {
                           setInvitationMode("view");
                           setInvitationEvent(event);
@@ -259,6 +282,8 @@ function EventDashboard({ onLogout, user }) {
                       <UpcomingEventCard
                         key={event.id}
                         event={event}
+                        onRegistrationToggle={() => handleRegistrationToggle(event)}
+                        registrationBusy={registrationBusySlug === event.sourceId}
                         onView={() => {
                           setInvitationMode("view");
                           setInvitationEvent(event);
