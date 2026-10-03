@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, CircleAlert, LoaderCircle, Play, Settings } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -72,10 +73,23 @@ function RafflePage({ eventSlug, userId }) {
     catch (requestError) { setStatus("ready"); setActionError(requestError.response?.data?.message || "The raffle settings could not be saved."); }
   }
 
+  async function uploadLogo(file) {
+    const formData = new FormData();
+    formData.append("logo", file);
+    const response = await api.post(`${endpoint}/logo`, formData);
+    await mutate(response.data.data ? { ...data, settings: response.data.data.settings } : undefined, { revalidate: false });
+    return response.data.data.settings.logo_url;
+  }
+
+  async function removeLogo() {
+    const response = await api.delete(`${endpoint}/logo`);
+    await mutate(response.data.data ? { ...data, settings: response.data.data.settings } : undefined, { revalidate: false });
+  }
+
   if (isLoading) return <main className="flex min-h-screen items-center justify-center bg-[#6f3faa] text-white"><LoaderCircle className="size-10 animate-spin" aria-label="Loading raffle" /></main>;
   if (error || !data) return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#6f3faa] p-6 text-center text-white"><CircleAlert className="size-10" /><p>The raffle could not be loaded.</p><Link href="/" className="rounded-full bg-white px-5 py-3 font-semibold text-[#5d3294]">Return to dashboard</Link></main>;
 
-  if (view === "settings") return <RaffleSettings endpoint={endpoint} initialEntries={data.entries} initialSettings={data.settings} winners={data.winners} winnerPagination={data.winner_pagination} saving={status === "saving"} error={actionError} onBack={() => setView("raffle")} onSave={saveSettings} />;
+  if (view === "settings") return <RaffleSettings endpoint={endpoint} initialEntries={data.entries} initialSettings={data.settings} winners={data.winners} winnerPagination={data.winner_pagination} saving={status === "saving"} error={actionError} onBack={() => setView("raffle")} onSave={saveSettings} onUploadLogo={uploadLogo} onRemoveLogo={removeLogo} />;
 
   const theme = getRaffleTheme(data.settings.theme);
   const effectiveStatus = status === "ready" && data.pending_draw ? "pending" : status;
@@ -94,6 +108,7 @@ function RafflePage({ eventSlug, userId }) {
 
       <div className="flex flex-1 flex-col items-center justify-center">
         <NamePicker entries={data.entries} selectedEntry={effectiveEntry || lastWinner} spinning={effectiveStatus === "spinning"} speed={data.settings.speed} onAnimationEnd={finishAnimation} />
+        {data.settings.logo_url && <div className="flex w-full justify-center px-4 pb-2"><Image src={data.settings.logo_url} alt={`${data.event.title} logo`} width={448} height={224} unoptimized className="h-auto w-auto max-h-20 max-w-[min(82vw,28rem)] object-contain sm:max-h-28 lg:max-h-36" /></div>}
         <div className="flex min-h-24 flex-wrap items-center justify-center gap-3 px-4">
           {!celebrationState.open && <button type="button" disabled={busy || data.entries.length === 0} onClick={startDraw} className="flex items-center gap-2 rounded-full px-10 py-5 text-xl font-black text-[#382054] shadow-xl disabled:opacity-50" style={{ background: theme.accent }}>{effectiveStatus === "drawing" || effectiveStatus === "spinning" ? <LoaderCircle className="animate-spin" /> : null}{effectiveStatus === "drawing" ? "Choosing..." : effectiveStatus === "spinning" ? "Picking..." : "Pick a Name"}</button>}
         </div>
