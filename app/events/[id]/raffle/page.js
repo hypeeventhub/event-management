@@ -106,9 +106,9 @@ function RafflePage({ eventSlug, userId }) {
 
       {actionError && <div role="alert" className="mx-auto mt-2 flex max-w-xl items-center gap-2 rounded-lg bg-red-950/35 px-4 py-3 text-sm"><CircleAlert className="size-4" />{actionError}</div>}
 
-      <div className="flex flex-1 flex-col items-center justify-center">
-        <NamePicker entries={data.entries} selectedEntry={effectiveEntry || lastWinner} spinning={effectiveStatus === "spinning"} speed={data.settings.speed} onAnimationEnd={finishAnimation} />
+      <div className="flex gap-5 flex-col items-center justify-center">
         {data.settings.logo_url && <div className="flex w-full justify-center px-4 pb-2"><Image src={data.settings.logo_url} alt={`${data.event.title} logo`} width={448} height={224} unoptimized className="h-auto w-auto max-h-20 max-w-[min(82vw,28rem)] object-contain sm:max-h-28 lg:max-h-36" /></div>}
+        <NamePicker entries={data.entries} selectedEntry={effectiveEntry || lastWinner} spinning={effectiveStatus === "spinning"} speed={data.settings.speed} onAnimationEnd={finishAnimation} />
         <div className="flex min-h-24 flex-wrap items-center justify-center gap-3 px-4">
           {!celebrationState.open && <button type="button" disabled={busy || data.entries.length === 0} onClick={startDraw} className="flex items-center gap-2 rounded-full px-10 py-5 text-xl font-black text-[#382054] shadow-xl disabled:opacity-50" style={{ background: theme.accent }}>{effectiveStatus === "drawing" || effectiveStatus === "spinning" ? <LoaderCircle className="animate-spin" /> : null}{effectiveStatus === "drawing" ? "Choosing..." : effectiveStatus === "spinning" ? "Picking..." : "Pick a Name"}</button>}
         </div>
