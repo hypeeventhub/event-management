@@ -172,8 +172,8 @@ function InvitationDialogContent({ event, mode, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
-        <DialogHeader className={"mt-4 ml-4"}>
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-4xl overflow-x-hidden overflow-y-auto p-3 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100%-2rem)] sm:p-6">
+        <DialogHeader className="mt-1 min-w-0 pr-10 sm:mt-0">
           <DialogTitle>{mode === "view" ? event?.title : "Event published successfully"}</DialogTitle>
           <DialogDescription>
             {mode === "view"
@@ -182,14 +182,14 @@ function InvitationDialogContent({ event, mode, open, onOpenChange }) {
           </DialogDescription>
         </DialogHeader>
 
-        <section className="mt-4 rounded-2xl border border-[#ffdece] bg-[#fffaf7] p-5">
+        <section className="mt-3 min-w-0 rounded-2xl border border-[#ffdece] bg-[#fffaf7] p-3 sm:mt-4 sm:p-5">
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]">
               <MailOpen className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-bold text-[#25170f]">Invitation email preview</h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-[#6f625b]">{invitationPreview}</p>
+              <p className="mt-2 break-words whitespace-pre-line text-sm leading-6 text-[#6f625b] [overflow-wrap:anywhere]">{invitationPreview}</p>
               <a
                 href={registrationUrl}
                 target="_blank"
@@ -202,8 +202,8 @@ function InvitationDialogContent({ event, mode, open, onOpenChange }) {
           </div>
         </section>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <section className="rounded-2xl bg-[#fff4ee] p-5">
+        <div className="mt-3 grid min-w-0 gap-3 sm:mt-4 sm:gap-4 md:grid-cols-2">
+          <section className="min-w-0 rounded-2xl bg-[#fff4ee] p-3 sm:p-5">
             <div className="flex size-10 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]">
               <Mail className="size-5" />
             </div>
@@ -218,7 +218,7 @@ function InvitationDialogContent({ event, mode, open, onOpenChange }) {
                 placeholder={"attendee@example.com\nsecond@example.com"}
                 required
                 rows={6}
-                className="w-full resize-y rounded-xl border-0 bg-white px-3 py-2 text-sm text-[#25170f] outline-none placeholder:text-[#96877f] focus-visible:ring-2 focus-visible:ring-[#f6671e]/25"
+                className="w-full min-w-0 resize-y rounded-xl border-0 bg-white px-3 py-2 text-sm text-[#25170f] outline-none placeholder:text-[#96877f] focus-visible:ring-2 focus-visible:ring-[#f6671e]/25"
               />
               <div className="space-y-1 text-xs">
                 <p className={emails.length > 100 ? "font-medium text-[#93000a]" : "text-[#6f625b]"}>
@@ -238,35 +238,35 @@ function InvitationDialogContent({ event, mode, open, onOpenChange }) {
             </form>
           </section>
 
-          <section className="flex flex-col items-center rounded-2xl border border-[#ffdece] bg-white p-5 text-center">
+          <section className="flex min-w-0 flex-col items-center rounded-2xl border border-[#ffdece] bg-white p-3 text-center sm:p-5">
             <div className="flex size-10 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]">
               <QrCode className="size-5" />
             </div>
             <h3 className="mt-3 font-bold text-[#25170f]">Registration QR</h3>
-            <div className="mt-3 flex size-56 items-center justify-center rounded-xl bg-[#fffaf7] p-2">
+            <div className="mt-3 flex aspect-square w-full max-w-56 items-center justify-center rounded-xl bg-[#fffaf7] p-2">
               {qrDataUrl ? (
-                <Image src={qrDataUrl} alt={`Registration QR code for ${event?.title || "event"}`} width={208} height={208} unoptimized />
+                <Image src={qrDataUrl} alt={`Registration QR code for ${event?.title || "event"}`} width={208} height={208} className="h-auto w-full max-w-[208px]" unoptimized />
               ) : (
                 <LoaderCircle className="size-7 animate-spin text-[#f6671e]" />
               )}
             </div>
-            <div className="mt-3 flex w-full gap-2">
-              <Button type="button" variant="secondary" size="sm" className="flex-1" onClick={downloadQrCode} disabled={!qrDataUrl}>
+            <div className="mt-3 flex w-full flex-col gap-2 min-[420px]:flex-row">
+              <Button type="button" variant="secondary" size="sm" className="w-full min-w-0 flex-1" onClick={downloadQrCode} disabled={!qrDataUrl}>
                 <Download />Download QR
               </Button>
-              <Button asChild size="sm" className="flex-1">
+              <Button asChild size="sm" className="w-full min-w-0 flex-1">
                 <a href={registrationUrl} target="_blank" rel="noreferrer"><ExternalLink />Open Form</a>
               </Button>
             </div>
           </section>
         </div>
 
-        <section className="mt-4 rounded-2xl border border-[#ffdece] bg-white p-5">
+        <section className="mt-3 min-w-0 rounded-2xl border border-[#ffdece] bg-white p-3 sm:mt-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]">
               <History className="size-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="font-bold text-[#25170f]">Recent invitation logs</h3>
               <p className="text-xs text-[#6f625b]">The latest 20 invitations for this event.</p>
             </div>
@@ -284,7 +284,7 @@ function InvitationDialogContent({ event, mode, open, onOpenChange }) {
             ) : (
               <div className="divide-y divide-[#f3e5de]">
                 {invitationLogs.map((invitation) => (
-                  <div key={invitation.id} className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[1fr_1.25fr_auto_auto] sm:items-center">
+                  <div key={invitation.id} className="grid min-w-0 gap-2 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_auto_auto] sm:items-center">
                     <span className="truncate font-medium text-[#25170f]" title={invitation.event.title}>{invitation.event.title}</span>
                     <span className="truncate text-[#6f625b]" title={invitation.email}>{invitation.email}</span>
                     <span className={invitation.status === "sent" ? "w-fit rounded-full bg-[#6cf8bb]/35 px-2.5 py-1 text-xs font-semibold text-[#006c49]" : "w-fit rounded-full bg-[#ffdad6] px-2.5 py-1 text-xs font-semibold text-[#93000a]"}>
@@ -299,7 +299,7 @@ function InvitationDialogContent({ event, mode, open, onOpenChange }) {
         </section>
 
         {message && (
-          <div role="status" className={message.type === "success" ? "mt-4 flex items-center gap-2 rounded-xl bg-[#6cf8bb]/35 px-4 py-3 text-sm font-medium text-[#006c49]" : "mt-4 rounded-xl bg-[#ffdad6] px-4 py-3 text-sm font-medium text-[#93000a]"}>
+          <div role="status" className={message.type === "success" ? "mt-3 flex min-w-0 items-start gap-2 break-words rounded-xl bg-[#6cf8bb]/35 px-4 py-3 text-sm font-medium text-[#006c49] [overflow-wrap:anywhere] sm:mt-4" : "mt-3 min-w-0 break-words rounded-xl bg-[#ffdad6] px-4 py-3 text-sm font-medium text-[#93000a] [overflow-wrap:anywhere] sm:mt-4"}>
             {message.type === "success" && <CheckCircle2 className="size-4" />}
             {message.text}
           </div>
