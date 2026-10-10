@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getVotingQrFilename, shouldRenderVotingQrImage } from "@/lib/voting-subjects.mjs";
 
+import Link from "next/link";
+
 export function VotingQrDialog({ subject, onOpenChange, onCloseAutoFocus }) {
   const [imageUrl, setImageUrl] = useState("");
   const [error, setError] = useState("");
@@ -47,7 +49,7 @@ export function VotingQrDialog({ subject, onOpenChange, onCloseAutoFocus }) {
           {shouldRenderVotingQrImage(subject, imageUrl, loading) && <Image unoptimized src={imageUrl} width={320} height={320} alt={`QR code for ${subject.title} voting link`} className="max-w-full rounded-xl bg-white" />}
           {!loading && !imageUrl && !error && <QrCode className="size-10 text-[#f6671e]" aria-hidden="true" />}
         </div>
-        {subject?.public_url && <p className="break-all text-center text-xs text-[#6f625b]">{subject.public_url}</p>}
+        {subject?.public_url && <Link href={subject.public_url} target="_blank" className="break-all text-center text-xs text-[#6f625b]">{subject.public_url}</Link>}
         <Button asChild disabled={!imageUrl || loading} className="w-full"><a href={imageUrl || undefined} download={getVotingQrFilename(subject?.title)} aria-disabled={!imageUrl || loading} onClick={(event) => { if (!imageUrl || loading) event.preventDefault(); }}><Download /> Download QR PNG</a></Button>
       </DialogContent>
     </Dialog>
