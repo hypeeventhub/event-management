@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CheckCircle2, Download, LoaderCircle, LockKeyhole, QrCode } from "lucide-react";
-import Image from "next/image";
+import { useState } from "react";
+import { CheckCircle2, LoaderCircle, LockKeyhole } from "lucide-react";
 import { useParams } from "next/navigation";
-import QRCode from "qrcode";
 import useSWR from "swr";
 
 import { Button } from "@/components/ui/button";
@@ -87,92 +85,18 @@ function RegistrationField({ field, value, onChange }) {
   );
 }
 
-function RegistrationConfirmation({ confirmation, event }) {
-  const [qrDataUrl, setQrDataUrl] = useState("");
-  const [qrError, setQrError] = useState("");
-  const registration = confirmation.registration;
-
-  useEffect(() => {
-    let active = true;
-
-    QRCode.toDataURL(registration.registration_code, {
-      width: 320,
-      margin: 2,
-      errorCorrectionLevel: "M",
-      color: { dark: "#25170f", light: "#ffffff" },
-    })
-      .then((dataUrl) => {
-        if (active) setQrDataUrl(dataUrl);
-      })
-      .catch(() => {
-        if (active) setQrError("The QR image could not be generated. Keep your registration code below.");
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [registration.registration_code]);
-
-  function downloadQrCode() {
-    if (!qrDataUrl) return;
-
-    const link = document.createElement("a");
-    const eventName = event.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    link.href = qrDataUrl;
-    link.download = `${eventName || "event"}-attendee-qr-pass.png`;
-    link.click();
-  }
-
+function RegistrationConfirmation({ email }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#fffaf7] p-4">
       <Card className="w-full max-w-lg text-center">
         <CardContent className="space-y-5 p-6 sm:p-8">
-          <CheckCircle2 className="mx-auto size-12 text-[#006c49]" />
+          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-[#e6f8ef]">
+            <CheckCircle2 className="size-10 text-[#006c49]" aria-hidden="true" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold">Registration confirmed</h1>
-            <p className="mt-2 text-sm text-[#6f625b]">
-              Present this attendee QR pass when you arrive at {event.title}.
-            </p>
+            <h1 className="text-2xl font-bold">Registration complete!</h1>
+            <p className="mt-2 text-sm text-[#6f625b]">A copy of this QR pass is queued to be emailed to {email}.</p>
           </div>
-
-          <div className="mx-auto flex size-72 max-w-full items-center justify-center rounded-2xl border border-[#ffdece] bg-white p-3">
-            {qrDataUrl ? (
-              <Image
-                src={qrDataUrl}
-                alt={`Attendee QR pass for ${event.title}`}
-                width={264}
-                height={264}
-                unoptimized
-              />
-            ) : qrError ? (
-              <QrCode className="size-16 text-[#96877f]" aria-hidden="true" />
-            ) : (
-              <LoaderCircle className="size-8 animate-spin text-[#f6671e]" aria-label="Generating attendee QR pass" />
-            )}
-          </div>
-
-          {qrError && <p role="alert" className="text-sm text-[#93000a]">{qrError}</p>}
-
-          <div>
-            <p className="text-sm text-[#6f625b]">Registration code</p>
-            <p className="mt-1 font-mono text-lg font-bold text-[#f6671e]">{registration.registration_code}</p>
-          </div>
-
-          <div
-            role="status"
-            className={confirmation.emailQueued
-              ? "rounded-xl bg-[#e6f8ef] px-4 py-3 text-sm text-[#006c49]"
-              : "rounded-xl bg-[#fff0ed] px-4 py-3 text-sm text-[#a5261d]"}
-          >
-            {confirmation.emailQueued
-              ? `A copy of this QR pass is queued to be emailed to ${registration.attendee.email}.`
-              : "The QR email could not be queued. Download and save this pass now."}
-          </div>
-
-          <Button type="button" className="w-full" onClick={downloadQrCode} disabled={!qrDataUrl}>
-            <Download className="size-4" />
-            Download QR pass
-          </Button>
         </CardContent>
       </Card>
     </main>
@@ -198,7 +122,7 @@ export default function EventRegistrationPage() {
 
     try {
       const { data } = await api.post(`/api/registration/events/${slug}`, { answers });
-      setConfirmation({ registration: data.data, emailQueued: data.email_queued });
+      setConfirmation({ email: data.email });
     } catch (requestError) {
       const errors = requestError.response?.data?.errors;
       setSubmitError(
@@ -220,7 +144,7 @@ export default function EventRegistrationPage() {
   }
 
   if (confirmation) {
-    return <RegistrationConfirmation confirmation={confirmation} event={event} />;
+    return <RegistrationConfirmation email={confirmation.email} />;
   }
 
   if (event.registration_is_open === false) {
