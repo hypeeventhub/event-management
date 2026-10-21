@@ -42,6 +42,7 @@ function toApiPayload({ details, registrationForm }) {
   return {
     title: details.title.trim(),
     description: details.description.trim() || null,
+    qr_description: details.qr_description?.trim() || null,
     category: details.category || null,
     capacity: details.capacity ? Number(details.capacity) : null,
     venue: venueIsUrl ? null : details.venue.trim() || null,
@@ -96,6 +97,7 @@ function toEventCard(event) {
       details: {
         title: event.title,
         description: event.description || "",
+        qr_description: event.qr_description || "",
         category: event.category || "Corporate Gala",
         capacity: event.capacity ? String(event.capacity) : "",
         startsAt: toDateTimeLocal(event.starts_at),

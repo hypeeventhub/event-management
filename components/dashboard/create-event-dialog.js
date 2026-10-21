@@ -39,6 +39,7 @@ const choiceTypes = new Set(["multiple", "checkboxes", "dropdown"]);
 const initialDetails = {
   title: "",
   description: "",
+  qr_description: "",
   category: "Corporate Gala",
   capacity: "",
   startsAt: "",
@@ -153,6 +154,17 @@ function EventDetails({ details, onChange  }) {
           value={details.description}
           onChange={(event) => onChange("description", event.target.value)}
           placeholder="Tell attendees what to expect..."
+          rows={3}
+          className="w-full resize-none rounded-xl border-0 bg-[#fff4ee] px-3 py-2.5 text-sm text-[#25170f] outline-none placeholder:text-[#96877f] focus:ring-2 focus:ring-[#f6671e]/25"
+        />
+      </div>
+      <div>
+        <label htmlFor="qr-description" className={fieldLabel}>QR Description</label>
+        <textarea
+          id="qr-description"
+          value={details.qr_description}
+          onChange={(event) => onChange("qr_description", event.target.value)}
+          placeholder="Show QR description to the attendees..."
           rows={3}
           className="w-full resize-none rounded-xl border-0 bg-[#fff4ee] px-3 py-2.5 text-sm text-[#25170f] outline-none placeholder:text-[#96877f] focus:ring-2 focus:ring-[#f6671e]/25"
         />
@@ -329,7 +341,7 @@ function FormPreview({ details, questions }) {
 
 export function CreateEventDialog({ open, onOpenChange, onCreated, initialEvent = null }) {
   const [activeView, setActiveView] = useState("details");
-  const [details, setDetails] = useState(() => initialEvent?.details || initialDetails);
+  const [details, setDetails] = useState(() => ({ ...initialDetails, ...initialEvent?.details }));
   const [questions, setQuestions] = useState(() => (
     initialEvent?.registrationForm?.map((question) => ({ ...question, options: [...question.options] }))
     || initialQuestions
