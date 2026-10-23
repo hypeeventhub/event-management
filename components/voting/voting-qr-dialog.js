@@ -11,7 +11,7 @@ import { getVotingQrFilename, shouldRenderVotingQrImage } from "@/lib/voting-sub
 
 import Link from "next/link";
 
-export function VotingQrDialog({ subject, onOpenChange, onCloseAutoFocus }) {
+export function VotingQrDialog({ subject, purpose = "voting", onOpenChange, onCloseAutoFocus }) {
   const [imageUrl, setImageUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,13 +40,13 @@ export function VotingQrDialog({ subject, onOpenChange, onCloseAutoFocus }) {
     <Dialog open={Boolean(subject)} onOpenChange={onOpenChange}>
       <DialogContent className="p-6 sm:p-8" onCloseAutoFocus={onCloseAutoFocus}>
         <DialogHeader className="pr-8">
-          <DialogTitle>Voting QR code</DialogTitle>
-          <DialogDescription>{subject?.title} · Share this link with voters.</DialogDescription>
+          <DialogTitle>{purpose === "nomination" ? "Nomination QR code" : "Voting QR code"}</DialogTitle>
+          <DialogDescription>{subject?.title} · Share this link with attendees to {purpose === "nomination" ? "nominate a candidate" : "vote"}.</DialogDescription>
         </DialogHeader>
         <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl bg-[#fff4ee] p-4">
           {loading && <LoaderCircle className="size-8 animate-spin text-[#f6671e]" aria-label="Generating QR code" />}
           {!loading && error && <p role="alert" className="text-center text-sm text-[#93000a]">{error}</p>}
-          {shouldRenderVotingQrImage(subject, imageUrl, loading) && <Image unoptimized src={imageUrl} width={320} height={320} alt={`QR code for ${subject.title} voting link`} className="max-w-full rounded-xl bg-white" />}
+          {shouldRenderVotingQrImage(subject, imageUrl, loading) && <Image unoptimized src={imageUrl} width={320} height={320} alt={`QR code for ${subject.title} ${purpose} link`} className="max-w-full rounded-xl bg-white" />}
           {!loading && !imageUrl && !error && <QrCode className="size-10 text-[#f6671e]" aria-hidden="true" />}
         </div>
         {subject?.public_url && <Link href={subject.public_url} target="_blank" className="break-all text-center text-xs text-[#6f625b]">{subject.public_url}</Link>}

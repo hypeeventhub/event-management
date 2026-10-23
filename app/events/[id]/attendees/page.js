@@ -10,8 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import AnsweredFormsDialog from "@/components/dashboard/answered-forms-dialog";
+import VotingActivityDialog from "@/components/dashboard/voting-activity-dialog";
 import api from "@/lib/api";
 import { buildAllRegistrantsCsv, buildAttendeeExportData } from "@/lib/attendee-export.mjs";
+import { getAttendeesChannelName, getEcho } from "@/lib/echo";
 
 export default function EventAttendeesPage() {
   const { id } = useParams();
@@ -26,6 +28,7 @@ export default function EventAttendeesPage() {
   const [exportingFormat, setExportingFormat] = useState("");
   const [actionError, setActionError] = useState("");
   const [selectedRegistration, setSelectedRegistration] = useState(null);
+  const [selectedVotingRegistration, setSelectedVotingRegistration] = useState(null);
   const [sortBy, sortDirection] = sort.split(":");
 
   useEffect(() => {
@@ -59,6 +62,25 @@ export default function EventAttendeesPage() {
     (url) => api.get(url).then((response) => response.data),
     { keepPreviousData: true },
   );
+
+  useEffect(() => {
+    if (!event?.id) return undefined;
+
+    const echo = getEcho();
+    if (!echo) return undefined;
+
+    const channelName = getAttendeesChannelName(event.id);
+    const channel = echo.private(channelName);
+    channel.listen(".attendee.registered", () => {
+      mutateRegistrations();
+    });
+
+    return () => {
+      channel.stopListening(".attendee.registered");
+      echo.leave(channelName);
+    };
+  }, [event?.id, mutateRegistrations]);
+
   const data = event && registrationPage ? {
     event,
     registrations: registrationPage.data,
@@ -226,7 +248,7 @@ export default function EventAttendeesPage() {
                   {data.registrations.map((registration) => {
                     const checkedIn = registration.check_ins.some((checkIn) => checkIn.result === "accepted");
                     return (
-                      <tr key={registration.id} className="hover:bg-[#fffaf7]"><td className="px-5 py-4"><div className="font-semibold text-[#25170f]">{registration.attendee.first_name} {registration.attendee.last_name}</div><div className="text-xs text-[#96877f]">{registration.attendee.email}</div></td><td className="px-5 py-4 font-mono text-xs text-[#6f625b]">{registration.registration_code}</td><td className="px-5 py-4"><Badge variant="success">{registration.status}</Badge></td><td className="px-5 py-4"><Badge variant={registration.has_voted ? "success" : "neutral"}>{registration.has_voted ? "Voted" : "Not voted"}</Badge></td><td className="px-5 py-4 text-xs text-[#6f625b]">{new Date(registration.registered_at).toLocaleString()}</td><td className="px-5 py-4"><Badge variant={checkedIn ? "success" : "neutral"}>{checkedIn ? "Checked in" : "Not checked in"}</Badge></td><td className="px-5 py-4"><div className="flex items-center justify-end gap-2"><Button type="button" size="icon" variant="secondary" aria-label="View answered forms" title="View answered forms" onClick={() => setSelectedRegistration(registration)}><Eye /></Button><Button type="button" size="icon" variant={checkedIn ? "secondary" : "default"} aria-label={checkedIn ? "Checked in" : "Check in attendee"} title={checkedIn ? "Checked in" : "Check in attendee"} disabled={checkedIn || checkingIn === registration.id} onClick={() => checkIn(registration)}>{checkingIn === registration.id ? <LoaderCircle className="animate-spin" /> : <BadgeCheck />}</Button></div></td></tr>
+                      <tr key={registration.id} className="hover:bg-[#fffaf7]"><td className="px-5 py-4"><div className="font-semibold text-[#25170f]">{registration.attendee.first_name} {registration.attendee.last_name}</div><div className="text-xs text-[#96877f]">{registration.attendee.email}</div></td><td className="px-5 py-4 font-mono text-xs text-[#6f625b]">{registration.registration_code}</td><td className="px-5 py-4"><Badge variant="success">{registration.status}</Badge></td><td className="px-5 py-4"><button type="button" onClick={() => setSelectedVotingRegistration(registration)} aria-label={`View voting activity for ${registration.attendee.first_name} ${registration.attendee.last_name}`} title="View voting activity" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f6671e]/40"><Badge variant={registration.has_voted ? "success" : "neutral"}>{registration.has_voted ? "Voted" : "Not voted"}</Badge></button></td><td className="px-5 py-4 text-xs text-[#6f625b]">{new Date(registration.registered_at).toLocaleString()}</td><td className="px-5 py-4"><Badge variant={checkedIn ? "success" : "neutral"}>{checkedIn ? "Checked in" : "Not checked in"}</Badge></td><td className="px-5 py-4"><div className="flex items-center justify-end gap-2"><Button type="button" size="icon" variant="secondary" aria-label="View answered forms" title="View answered forms" onClick={() => setSelectedRegistration(registration)}><Eye /></Button><Button type="button" size="icon" variant={checkedIn ? "secondary" : "default"} aria-label={checkedIn ? "Checked in" : "Check in attendee"} title={checkedIn ? "Checked in" : "Check in attendee"} disabled={checkedIn || checkingIn === registration.id} onClick={() => checkIn(registration)}>{checkingIn === registration.id ? <LoaderCircle className="animate-spin" /> : <BadgeCheck />}</Button></div></td></tr>
                     );
                   })}
                 </tbody>
@@ -254,6 +276,16 @@ export default function EventAttendeesPage() {
         onOpenChange={(open) => {
           if (!open) {
             setSelectedRegistration(null);
+          }
+        }}
+      />
+      <VotingActivityDialog
+        registration={selectedVotingRegistration}
+        subjects={registrationPage?.voting_subjects || []}
+        open={Boolean(selectedVotingRegistration)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedVotingRegistration(null);
           }
         }}
       />

@@ -1,6 +1,6 @@
 import { Crown, Medal } from "lucide-react";
 
-export function LeaderboardRow({ contestant, theme }) {
+export function LeaderboardRow({ contestant, theme, resultLabel = "vote" }) {
   const progress = Math.max(0, Math.min(100, Number(contestant.percentage) || 0));
   const podiumBackgrounds = {
     first: "#fff3cb",
@@ -28,7 +28,7 @@ export function LeaderboardRow({ contestant, theme }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <h3 className="break-words text-xl font-extrabold leading-tight text-[#25170f] sm:text-2xl">{contestant.name}</h3>
-            <div className="flex items-baseline gap-2 text-[#25170f]"><strong className="text-2xl font-black tabular-nums sm:text-3xl">{contestant.votes.toLocaleString()}</strong><span className="text-sm font-semibold text-[#554766]">vote{contestant.votes === 1 ? "" : "s"}</span></div>
+            <div className="flex items-baseline gap-2 text-[#25170f]"><strong className="text-2xl font-black tabular-nums sm:text-3xl">{contestant.votes.toLocaleString()}</strong><span className="text-sm font-semibold text-[#554766]">{resultLabel}{contestant.votes === 1 ? "" : "s"}</span></div>
           </div>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-4 min-w-0 flex-1 overflow-hidden rounded-full bg-black/10" role="progressbar" aria-label={`${contestant.name} vote share`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
