@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   LockOpen,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -209,7 +210,7 @@ export function LiveEventCard({ event, onView, onRegistrationToggle, registratio
   );
 }
 
-export function UpcomingEventCard({ event, onEdit, onView, onRegistrationToggle, registrationBusy = false }) {
+export function UpcomingEventCard({ event, onEdit, onView, onDelete, onRegistrationToggle, registrationBusy = false, deleteBusy = false }) {
   return (
     <Card className="flex min-h-60 flex-col justify-between space-y-4 p-4 sm:p-6">
       <div className="space-y-2">
@@ -273,6 +274,18 @@ export function UpcomingEventCard({ event, onEdit, onView, onRegistrationToggle,
             title="View event"
           >
             <Eye />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-[#ba1a1a] hover:bg-[#fff0ed] hover:text-[#93000a]"
+            onClick={onDelete}
+            disabled={deleteBusy}
+            aria-label={`Delete ${event.title}`}
+            title="Delete event"
+          >
+            {deleteBusy ? <LoaderCircle className="animate-spin" /> : <Trash2 />}
           </Button>
           <Button type="button" size="sm" onClick={onEdit}>
             Edit Event

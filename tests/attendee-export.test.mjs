@@ -11,7 +11,8 @@ const registrations = [
       { answer: "Ana", field: { id: 1, key: "first-name", system_key: "first_name", label: "First name", position: 0 } },
       { answer: "Santos", field: { id: 2, key: "last-name", system_key: "last_name", label: "Last name", position: 1 } },
       { answer: "ana@example.com", field: { id: 3, key: "work-email", system_key: "email", label: "Work email", position: 2 } },
-      { answer: "Vegetarian", field: { id: 4, key: "meal", system_key: null, label: "Meal preference", position: 3 } },
+      { answer: "female", field: { id: 4, key: "gender", system_key: "gender", label: "Gender", position: 3 } },
+      { answer: "Vegetarian", field: { id: 5, key: "meal", system_key: null, label: "Meal preference", position: 4 } },
     ],
     check_ins: [{ result: "accepted" }],
     status: "confirmed",
@@ -21,8 +22,9 @@ const registrations = [
     id: 2,
     attendee: { first_name: "Ben", last_name: "Cruz", email: "ben@example.com" },
     answers: [
-      { answer: "Regular", field: { id: 8, key: "meal", system_key: null, label: "Meal preference", position: 3 } },
-      { answer: ["Email", "SMS"], field: { id: 9, key: "contact-methods", system_key: null, label: "Contact methods", position: 4 } },
+      { answer: "male", field: { id: 8, key: "gender", system_key: "gender", label: "Gender", position: 3 } },
+      { answer: "Regular", field: { id: 9, key: "meal", system_key: null, label: "Meal preference", position: 4 } },
+      { answer: ["Email", "SMS"], field: { id: 10, key: "contact-methods", system_key: null, label: "Contact methods", position: 5 } },
     ],
     check_ins: [],
     status: "confirmed",
@@ -55,6 +57,7 @@ test("exports each custom form answer in its own column", () => {
   const secondRow = result.sheets[2].rows[1];
 
   assert.equal(secondRow.answer_meal, "Regular");
+  assert.equal(secondRow.answer_gender, undefined);
   assert.equal(secondRow["answer_contact-methods"], "Email, SMS");
   assert.equal(secondRow.check_in, "Not attended");
 });
@@ -62,6 +65,7 @@ test("exports each custom form answer in its own column", () => {
 test("includes current custom questions that no attendee has answered yet", () => {
   const result = buildAttendeeExportData(registrations, [
     { id: 10, key: "shirt-size", system_key: null, label: "T-shirt size", position: 5 },
+    { id: 11, key: "gender", system_key: "gender", label: "Gender", position: 3, options: [] },
   ]);
 
   assert.deepEqual(result.columns.map((column) => column.header), [

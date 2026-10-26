@@ -15,10 +15,12 @@ test("admins can access scanner tools while scanner accounts stay restricted", (
   assert.equal(canAccessRoute("Admin", "/manage-users"), true);
   assert.equal(canAccessRoute("Admin", "/scanner"), true);
   assert.equal(canAccessRoute("Admin", "/settings"), true);
+  assert.equal(canAccessRoute("Admin", "/history"), true);
   assert.equal(canAccessRoute("Admin", "/events/sample/raffle"), true);
   assert.equal(canAccessRoute("Admin", "/events/sample/raffle/extra"), false);
   assert.equal(canAccessRoute("Scanner", "/scanner"), true);
   assert.equal(canAccessRoute("Scanner", "/settings"), true);
+  assert.equal(canAccessRoute("Scanner", "/history"), false);
   assert.equal(canAccessRoute("Scanner", "/"), false);
   assert.equal(canAccessRoute("Scanner", "/manage-users"), false);
   assert.equal(canAccessRoute("Scanner", "/events/sample/raffle"), false);
@@ -28,6 +30,7 @@ test("admins can access scanner tools while scanner accounts stay restricted", (
 test("admins receive scanner navigation while scanner accounts remain limited", () => {
   assert.deepEqual(getNavigationForRole("Admin"), [
     { label: "Dashboard", href: "/" },
+    { label: "History", href: "/history" },
     { label: "Check In & Scanner", href: "/scanner" },
   ]);
   assert.deepEqual(getNavigationForRole("Scanner"), [

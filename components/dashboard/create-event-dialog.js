@@ -49,6 +49,7 @@ const initialDetails = {
 const initialQuestions = [
   {
     id: "last-name",
+    systemKey: "last_name",
     type: "short",
     label: "Last name",
     description: "Enter the attendee's last name.",
@@ -57,6 +58,7 @@ const initialQuestions = [
   },
   {
     id: "first-name",
+    systemKey: "first_name",
     type: "short",
     label: "First name",
     description: "Enter the attendee's first name.",
@@ -65,6 +67,7 @@ const initialQuestions = [
   },
   {
     id: "work-email",
+    systemKey: "email",
     type: "short",
     label: "Work email",
     description: "We will send the registration confirmation to this address.",
@@ -226,6 +229,10 @@ function EventDetails({ details, onChange  }) {
 }
 
 function QuestionCard({ question, index, total, onUpdate, onDuplicate, onDelete, onMove }) {
+  const fixedSystemQuestionKeys = new Set(["first_name", "last_name", "email"]);
+  const fixedSystemQuestionIds = new Set(["first-name", "last-name", "work-email"]);
+  const isRequiredSystemQuestion = fixedSystemQuestionKeys.has(question.systemKey) || fixedSystemQuestionIds.has(question.id);
+
   function updateOption(optionIndex, value) {
     const options = [...question.options];
     options[optionIndex] = value;
@@ -243,9 +250,10 @@ function QuestionCard({ question, index, total, onUpdate, onDuplicate, onDelete,
       </div>
       <div className="space-y-4 p-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_190px]">
-          <Input value={question.label} onChange={(event) => onUpdate({ label: event.target.value })} placeholder="Question" aria-label={`Question ${index + 1} title`} />
+          <Input value={question.label} readOnly={isRequiredSystemQuestion} onChange={(event) => onUpdate({ label: event.target.value })} placeholder="Question" aria-label={`Question ${index + 1} title`} />
           <select
             value={question.type}
+            disabled={isRequiredSystemQuestion}
             onChange={(event) => {
               const type = event.target.value;
               onUpdate({ type, options: choiceTypes.has(type) && question.options.length === 0 ? ["Option 1", "Option 2"] : question.options });
@@ -263,19 +271,31 @@ function QuestionCard({ question, index, total, onUpdate, onDuplicate, onDelete,
             {question.options.map((option, optionIndex) => (
               <div key={`${question.id}-${optionIndex}`} className="flex items-center gap-2">
                 <span className={question.type === "checkboxes" ? "size-3.5 rounded border border-[#96877f]" : "size-3.5 rounded-full border border-[#96877f]"} />
-                <input value={option} onChange={(event) => updateOption(optionIndex, event.target.value)} className="min-w-0 flex-1 border-b border-[#f3c7b2] bg-transparent px-1 py-1 text-sm outline-none focus:border-[#f6671e]" aria-label={`Option ${optionIndex + 1}`} />
-                <button type="button" onClick={() => onUpdate({ options: question.options.filter((_, valueIndex) => valueIndex !== optionIndex) })} className="rounded-md p-1 text-[#96877f] hover:bg-[#ffdad6] hover:text-[#ba1a1a]" aria-label={`Remove option ${optionIndex + 1}`}><Trash2 className="size-3.5" /></button>
+                {isRequiredSystemQuestion ? (
+                  <span className="min-w-0 flex-1 px-1 py-1 text-sm text-[#25170f]">{option}</span>
+                ) : (
+                  <>
+                    <input value={option} onChange={(event) => updateOption(optionIndex, event.target.value)} className="min-w-0 flex-1 border-b border-[#f3c7b2] bg-transparent px-1 py-1 text-sm outline-none focus:border-[#f6671e]" aria-label={`Option ${optionIndex + 1}`} />
+                    <button type="button" onClick={() => onUpdate({ options: question.options.filter((_, valueIndex) => valueIndex !== optionIndex) })} className="rounded-md p-1 text-[#96877f] hover:bg-[#ffdad6] hover:text-[#ba1a1a]" aria-label={`Remove option ${optionIndex + 1}`}><Trash2 className="size-3.5" /></button>
+                  </>
+                )}
               </div>
             ))}
-            <button type="button" onClick={() => onUpdate({ options: [...question.options, `Option ${question.options.length + 1}`] })} className="ml-5 inline-flex items-center gap-1 text-xs font-semibold text-[#f6671e]"><Plus className="size-3.5" />Add option</button>
+            {!isRequiredSystemQuestion && <button type="button" onClick={() => onUpdate({ options: [...question.options, `Option ${question.options.length + 1}`] })} className="ml-5 inline-flex items-center gap-1 text-xs font-semibold text-[#f6671e]"><Plus className="size-3.5" />Add option</button>}
           </div>
         )}
 
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#ffdece] pt-3">
-          <Button type="button" variant="ghost" size="icon" onClick={onDuplicate} aria-label="Duplicate question"><Copy /></Button>
-          <Button type="button" variant="ghost" size="icon" onClick={onDelete} aria-label="Delete question" className="text-[#ba1a1a]"><Trash2 /></Button>
-          <span className="mx-1 h-6 w-px bg-[#ffdece]" />
-          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-[#6f625b]">Required<input type="checkbox" checked={question.required} onChange={(event) => onUpdate({ required: event.target.checked })} className="size-4 accent-[#f6671e]" /></label>
+          {isRequiredSystemQuestion ? (
+            <span className="text-xs font-semibold text-[#6f625b]">Required field</span>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" size="icon" onClick={onDuplicate} aria-label="Duplicate question"><Copy /></Button>
+              <Button type="button" variant="ghost" size="icon" onClick={onDelete} aria-label="Delete question" className="text-[#ba1a1a]"><Trash2 /></Button>
+              <span className="mx-1 h-6 w-px bg-[#ffdece]" />
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-[#6f625b]">Required<input type="checkbox" checked={question.required} onChange={(event) => onUpdate({ required: event.target.checked })} className="size-4 accent-[#f6671e]" /></label>
+            </>
+          )}
         </div>
       </div>
     </article>

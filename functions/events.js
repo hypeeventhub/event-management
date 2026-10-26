@@ -25,6 +25,7 @@ function toDateTimeLocal(value) {
 }
 
 function systemKeyForQuestion(question) {
+  if (["first_name", "last_name", "email"].includes(question.systemKey)) return question.systemKey;
   if (question.id === "first-name") return "first_name";
   if (question.id === "last-name") return "last_name";
   if (question.id === "work-email") return "email";
@@ -75,6 +76,37 @@ function toEventCard(event) {
   const isLive = event.status === "live" || (
     event.status === "published" && startsAt <= now && endsAt >= now
   );
+  const registrationForm = (event.active_registration_form?.fields || []).map((field) => ({
+    id: field.key,
+    systemKey: field.system_key,
+    type: field.type,
+    label: field.label,
+    description: field.description || "",
+    required: field.is_required,
+    options: field.options.map((option) => option.label),
+  }));
+  const filteredRegistrationForm = registrationForm.filter((field) => field.systemKey !== "gender");
+  const requiredSystemQuestionDefaults = [
+    { id: "first-name", systemKey: "first_name", type: "short", label: "First name", description: "Enter the attendee's first name.", options: [] },
+    { id: "last-name", systemKey: "last_name", type: "short", label: "Last name", description: "Enter the attendee's last name.", options: [] },
+    { id: "work-email", systemKey: "email", type: "short", label: "Work email", description: "We will send the registration confirmation to this address.", options: [] },
+  ];
+
+  requiredSystemQuestionDefaults.forEach((question) => {
+    const index = filteredRegistrationForm.findIndex((field) => field.systemKey === question.systemKey);
+    if (index === -1) {
+      filteredRegistrationForm.push({ ...question, required: true });
+      return;
+    }
+
+    filteredRegistrationForm[index] = {
+      ...filteredRegistrationForm[index],
+      ...question,
+      id: filteredRegistrationForm[index].id,
+      description: filteredRegistrationForm[index].description || question.description,
+      required: true,
+    };
+  });
 
   return {
     sourceId: event.slug,
@@ -92,7 +124,12 @@ function toEventCard(event) {
     checkedIn: `${checkedIn} / ${registered} Checked In (${Math.round(attendanceProgress)}%)`,
     isLive,
     registrationIsOpen: event.registration_is_open !== false,
-    registrationForm: event.active_registration_form,
+    registrationForm: event.active_registration_form
+      ? {
+        ...event.active_registration_form,
+        fields: (event.active_registration_form.fields || []).filter((field) => field.system_key !== "gender"),
+      }
+      : null,
     editData: {
       details: {
         title: event.title,
@@ -104,14 +141,7 @@ function toEventCard(event) {
         endsAt: toDateTimeLocal(event.ends_at),
         venue: event.venue || event.meeting_url || "",
       },
-      registrationForm: (event.active_registration_form?.fields || []).map((field) => ({
-        id: field.key,
-        type: field.type,
-        label: field.label,
-        description: field.description || "",
-        required: field.is_required,
-        options: field.options.map((option) => option.label),
-      })),
+    registrationForm: filteredRegistrationForm,
     },
   };
 }
@@ -160,6 +190,14 @@ export function useEvents() {
     return toEventCard(updatedEvent);
   };
 
+  const deleteEvent = async (eventSlug) => {
+    await api.delete(`/api/events/${encodeURIComponent(eventSlug)}`);
+    await mutate(
+      (current = []) => current.filter((item) => item.slug !== eventSlug),
+      { revalidate: false },
+    );
+  };
+
   return {
     events: (data || []).map(toEventCard),
     error,
@@ -167,6 +205,7 @@ export function useEvents() {
     createEvent,
     updateEvent,
     updateRegistrationOpen,
+    deleteEvent,
     refresh: mutate,
   };
 }

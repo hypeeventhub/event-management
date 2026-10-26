@@ -14,6 +14,7 @@ import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 
 import LoginScreen from "@/components/auth/login-screen";
+import { DeleteEventDialog } from "@/components/dashboard/delete-event-dialog";
 import { CreateEventDialog } from "@/components/dashboard/event-dialogs";
 import { LiveEventCard, UpcomingEventCard } from "@/components/dashboard/event-cards";
 import { InvitationDialog } from "@/components/dashboard/invitation-dialog";
@@ -72,11 +73,13 @@ function EventDashboard({ onLogout, user }) {
   const [category, setCategory] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [deletingEvent, setDeletingEvent] = useState(null);
   const [invitationEvent, setInvitationEvent] = useState(null);
   const [invitationMode, setInvitationMode] = useState("published");
   const [toast, setToast] = useState(null);
-  const { events, error: eventsError, isLoading: eventsLoading, createEvent, updateEvent, updateRegistrationOpen } = useEvents();
+  const { events, error: eventsError, isLoading: eventsLoading, createEvent, updateEvent, updateRegistrationOpen, deleteEvent } = useEvents();
   const [registrationBusySlug, setRegistrationBusySlug] = useState(null);
+  const [deleteBusySlug, setDeleteBusySlug] = useState(null);
   const [registrationActionError, setRegistrationActionError] = useState("");
 
   useEffect(() => {
@@ -137,6 +140,17 @@ function EventDashboard({ onLogout, user }) {
         setInvitationMode("published");
         setInvitationEvent(savedEvent);
       }, 0);
+    }
+  }
+
+  async function handleEventDelete(eventSlug) {
+    setDeleteBusySlug(eventSlug);
+
+    try {
+      await deleteEvent(eventSlug);
+      showToast("Event Deleted", `${deletingEvent?.title || "The event"} was removed from Upcoming Events.`);
+    } finally {
+      setDeleteBusySlug(null);
     }
   }
 
@@ -292,6 +306,8 @@ function EventDashboard({ onLogout, user }) {
                           setEditingEvent(event);
                           setCreateOpen(true);
                         }}
+                        onDelete={() => setDeletingEvent(event)}
+                        deleteBusy={deleteBusySlug === event.sourceId}
                       />
                     ))}
                   </div>
@@ -321,6 +337,14 @@ function EventDashboard({ onLogout, user }) {
         onOpenChange={(open) => {
           if (!open) setInvitationEvent(null);
         }}
+      />
+      <DeleteEventDialog
+        event={deletingEvent}
+        open={Boolean(deletingEvent)}
+        onOpenChange={(open) => {
+          if (!open) setDeletingEvent(null);
+        }}
+        onConfirm={handleEventDelete}
       />
       <div
         role="status"

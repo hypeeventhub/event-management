@@ -138,8 +138,14 @@ export function PublicNominationForm({ slug }) {
                 </div>
               ) : (
                 <>
-                  <p className="mt-3 text-sm leading-6 text-[#6f625b]">Search for the attendee you would like to nominate. Then enter your registration code to verify your submission.</p>
+                  <p className="mt-3 text-sm leading-6 text-[#6f625b]">Enter your registration code first, then search for the attendee you would like to nominate.</p>
                   <form className="mt-7 space-y-6" onSubmit={handleSubmit} noValidate>
+                    <div className="space-y-2">
+                      <label htmlFor="registration-code" className="block text-sm font-semibold">Your registration code</label>
+                      <Input id="registration-code" name="registration_code" type="text" autoComplete="off" autoCapitalize="characters" spellCheck={false} value={registrationCode} onChange={(event) => { setRegistrationCode(event.target.value); setSubmitError((current) => current?.field === "registration_code" ? null : current); }} aria-invalid={submitError?.field === "registration_code"} aria-describedby={submitError?.field === "registration_code" ? "registration-code-error" : undefined} className="h-12 border border-[#ead4c7] bg-[#fffaf7] px-4 text-base uppercase focus-visible:ring-[#f6671e]" placeholder="Enter your code" disabled={busy} />
+                      {submitError?.field === "registration_code" && <p id="registration-code-error" role="alert" className="text-sm text-[#ba1a1a]">{submitError.message}</p>}
+                    </div>
+
                     <div className="space-y-2">
                       <label htmlFor="nominee-search" className="block text-sm font-semibold">Name to nominate</label>
                       <div className="relative">
@@ -167,11 +173,6 @@ export function PublicNominationForm({ slug }) {
                       <div className="space-y-3 rounded-2xl border border-[#ffdece] bg-[#fffaf7] p-4">
                         <p className="text-xs font-semibold tracking-wide text-[#6f625b] uppercase">Your selected nominee</p>
                         <p className="break-words text-lg font-bold">{selected.full_name}</p>
-                        <div className="space-y-2">
-                          <label htmlFor="registration-code" className="block text-sm font-semibold">Your registration code</label>
-                          <Input id="registration-code" name="registration_code" type="text" autoComplete="off" autoCapitalize="characters" spellCheck={false} value={registrationCode} onChange={(event) => { setRegistrationCode(event.target.value); setSubmitError((current) => current?.field === "registration_code" ? null : current); }} aria-invalid={submitError?.field === "registration_code"} aria-describedby={submitError?.field === "registration_code" ? "registration-code-error" : undefined} className="h-12 border border-[#ead4c7] bg-white px-4 text-base uppercase focus-visible:ring-[#f6671e]" placeholder="Enter your code" disabled={busy} />
-                          {submitError?.field === "registration_code" && <p id="registration-code-error" role="alert" className="text-sm text-[#ba1a1a]">{submitError.message}</p>}
-                        </div>
                       </div>
                     )}
 
