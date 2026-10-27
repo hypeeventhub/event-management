@@ -36,9 +36,9 @@ export function TopHeader({ onMenuOpen, onLogout, user }) {
           </Button>
 
           <div className="flex items-center gap-2 sm:hidden">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-[#f6671e] text-white">
+            {/* <span className="flex size-8 items-center justify-center rounded-lg bg-[#f6671e] text-white">
               <Network className="size-4.5" />
-            </span>
+            </span> */}
             <span className="font-bold tracking-tight text-[#25170f]">Hype Event Hub</span>
           </div>
         </div>
