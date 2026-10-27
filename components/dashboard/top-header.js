@@ -39,7 +39,7 @@ export function TopHeader({ onMenuOpen, onLogout, user }) {
             <span className="flex size-8 items-center justify-center rounded-lg bg-[#f6671e] text-white">
               <Network className="size-4.5" />
             </span>
-            <span className="font-bold tracking-tight text-[#25170f]">NexusEvent</span>
+            <span className="font-bold tracking-tight text-[#25170f]">Hype Event Hub</span>
           </div>
         </div>
 
