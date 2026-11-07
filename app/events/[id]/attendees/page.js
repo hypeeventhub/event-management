@@ -167,6 +167,20 @@ export default function EventAttendeesPage() {
     }
   }
 
+  async function saveRegistrationAnswers(payload) {
+    if (!selectedRegistration) return null;
+
+    const { data: response } = await api.patch(
+      `/api/events/${id}/registrations/${selectedRegistration.id}/answers`,
+      payload,
+    );
+    const updatedRegistration = response.data;
+    setSelectedRegistration(updatedRegistration);
+    await mutateRegistrations().catch(() => undefined);
+
+    return updatedRegistration;
+  }
+
   if (isLoading) {
     return <main className="flex min-h-screen items-center justify-center bg-[#fffaf7]"><LoaderCircle className="size-8 animate-spin text-[#f6671e]" /></main>;
   }
@@ -273,6 +287,7 @@ export default function EventAttendeesPage() {
       <AnsweredFormsDialog
         registration={selectedRegistration}
         open={Boolean(selectedRegistration)}
+        onSave={saveRegistrationAnswers}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedRegistration(null);
