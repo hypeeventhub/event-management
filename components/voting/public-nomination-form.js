@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PublicVoteForm } from "@/components/voting/public-vote-form";
 import {
   getPublicNominationError,
   loadPublicNomination,
@@ -50,7 +51,7 @@ export function PublicNominationForm({ slug }) {
 
   useEffect(() => {
     const search = query.trim();
-    if (!search || !nomination || !isOpen(nomination.status)) return undefined;
+    if (!search || !nomination || nomination.mode !== "nomination" || !isOpen(nomination.status)) return undefined;
 
     const controller = new AbortController();
     const timer = setTimeout(() => {
@@ -73,7 +74,7 @@ export function PublicNominationForm({ slug }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (busy || phase !== "ready" || !nomination || !isOpen(nomination.status)) return;
+    if (busy || phase !== "ready" || !nomination || nomination.mode !== "nomination" || !isOpen(nomination.status)) return;
     const validation = validatePublicNomination({ selectedAttendee: selected, registrationCode });
     if (validation) {
       setSubmitError(validation);
@@ -95,12 +96,16 @@ export function PublicNominationForm({ slug }) {
   const suggestion = nominationSuggestion(query, candidates);
   const errorMessage = submitError?.message;
 
+  if (phase === "ready" && nomination?.mode === "voting" && nomination.votingSlug) {
+    return <PublicVoteForm slug={nomination.votingSlug} finalistBallot />;
+  }
+
   return (
     <main className="min-h-screen bg-[#fffaf7] px-4 py-8 text-[#25170f] sm:px-6 sm:py-12">
       <div className="mx-auto max-w-lg">
         <div className="mb-8 flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-2xl bg-[#f6671e] text-white shadow-sm"><Vote aria-hidden="true" className="size-6" /></div>
-          <span className="text-sm font-bold tracking-[0.12em] text-[#a8460d] uppercase">Event nomination</span>
+          <span className="text-sm font-bold tracking-[0.12em] text-[#a8460d] uppercase">{nomination && nomination.mode !== "nomination" ? "Event voting" : "Event nomination"}</span>
         </div>
 
         <section className="rounded-3xl border border-[#f5ded1] bg-white p-6 shadow-[0_18px_48px_-30px_rgba(122,45,8,0.35)] sm:p-8">
@@ -130,9 +135,17 @@ export function PublicNominationForm({ slug }) {
 
           {phase === "ready" && nomination && (
             <>
-              <p className="text-xs font-bold tracking-[0.12em] text-[#f6671e] uppercase">Nominate a candidate</p>
+              <p className="text-xs font-bold tracking-[0.12em] text-[#f6671e] uppercase">{nomination.mode === "nomination" ? "Nominate a candidate" : "Event voting"}</p>
               <h1 className="mt-2 break-words text-3xl font-bold leading-tight">{nomination.title}</h1>
-              {!isOpen(nomination.status) ? (
+              {nomination.mode === "voting_pending" ? (
+                <div role="status" className="mt-6 rounded-2xl border border-[#ffdece] bg-[#fff4ee] p-4 text-sm leading-6 text-[#6f625b]">
+                  Nominations are closed. Voting will open after the organizer activates the finalist ballot.
+                </div>
+              ) : nomination.mode === "voting_closed" || nomination.mode === "nomination_closed" ? (
+                <div role="status" className="mt-6 rounded-2xl border border-[#ffdece] bg-[#fff4ee] p-4 text-sm leading-6 text-[#6f625b]">
+                  {nomination.mode === "voting_closed" ? "Voting is closed for this event." : "Nominations are closed for this link."}
+                </div>
+              ) : !isOpen(nomination.status) ? (
                 <div role="status" className="mt-6 rounded-2xl border border-[#ffdece] bg-[#fff4ee] p-4 text-sm leading-6 text-[#6f625b]">
                   Nominations are not open right now. Please check back with the event organizer.
                 </div>
@@ -152,10 +165,10 @@ export function PublicNominationForm({ slug }) {
                         <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#96877f]" />
                         <Input id="nominee-search" type="search" autoComplete="off" value={query} onChange={(event) => { const value = event.target.value; setQuery(value); setCandidates([]); setSearching(Boolean(value.trim())); setSearchError(""); setSelected(null); setSubmitError(null); }} aria-describedby="nominee-search-help" className="h-12 border border-[#ead4c7] bg-[#fffaf7] pl-10 text-base focus-visible:ring-[#f6671e]" placeholder="Start typing an attendee name" disabled={busy} />
                       </div>
-                      <p id="nominee-search-help" className="text-xs leading-5 text-[#6f625b]">You must choose a name from the matching attendees below.</p>
+                      <p id="nominee-search-help" className="text-xs leading-5 text-[#6f625b]">Choose from attendees who have checked in to this event.</p>
                       {searching && <p role="status" className="flex items-center gap-2 text-sm text-[#6f625b]"><LoaderCircle aria-hidden="true" className="size-4 animate-spin" /> Searching attendees...</p>}
                       {searchError && <p role="alert" className="text-sm text-[#ba1a1a]">{searchError}</p>}
-                      {!searching && !searchError && query.trim() && candidates.length === 0 && <p role="status" className="text-sm text-[#6f625b]">No matching attendees found. Try another spelling.</p>}
+                      {!searching && !searchError && query.trim() && candidates.length === 0 && <p role="status" className="text-sm text-[#6f625b]">No checked-in attendees matched. Try another spelling.</p>}
                       {!searching && !searchError && candidates.length > 0 && (
                         <div className="space-y-2">
                           {suggestion && <p className="rounded-xl bg-[#fff4ee] px-3 py-2 text-sm text-[#6f625b]">Did you mean <span className="font-semibold text-[#25170f]">“{suggestion.full_name}”</span>? Select it below if that is who you mean.</p>}

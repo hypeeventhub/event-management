@@ -20,7 +20,7 @@ import { getVotingSubjectUrl } from "@/lib/voting-subjects.mjs";
 
 const confirmCopy = {
   open: { title: "Open nomination?", description: "Attendees can begin nominating candidates. The title and finalist count can no longer be edited.", button: "Open nomination" },
-  closeNomination: { title: "Close nomination?", description: "Candidate nominations will end. A separate voting draft will be created from the top nominees, including ties at the cutoff. At least two unique nominees are required to create a voting draft.", button: "Close nomination" },
+  closeNomination: { title: "Close nomination?", description: "Candidate nominations will end and a finalist voting draft will be created. The same QR code and link will switch to voting after you activate that draft. At least two unique nominees are required.", button: "Close nomination" },
   activate: { title: "Activate voting?", description: "This ballot will become available to voters. Its title and contestants can no longer be edited.", button: "Activate voting" },
   close: { title: "Close voting?", description: "Voters will no longer be able to cast votes for this subject.", button: "Close voting" },
   delete: { title: "Delete this draft?", description: "This voting subject and its contestants will be removed.", button: "Delete subject" },
@@ -96,12 +96,12 @@ function VotingManagement({ eventSlug, userId }) {
         const response = await api.post(`${url}/${action}`);
         if (nomination && action === "close") {
           const closed = response.data.data;
-          const generated = closed.generated_subject;
+          const generatedId = closed.generated_subject?.id;
           await mutate((current) => {
-            const updated = (current || []).map((item) => item.id === closed.id ? closed : item);
-            return generated && !updated.some((item) => item.id === generated.id) ? [...updated, generated] : updated;
+            return (current || []).filter((item) => item.id !== generatedId)
+              .map((item) => item.id === closed.id ? closed : item);
           }, { revalidate: false });
-          setActionNotice("Nomination closed. Review the generated voting draft before activating it.");
+          setActionNotice("Nomination closed. The same QR code and link now point to the finalist voting ballot. Activate voting to open it to attendees.");
         }
       }
       setConfirmation(null);
@@ -115,6 +115,10 @@ function VotingManagement({ eventSlug, userId }) {
   }
 
   const title = event?.title || "Event voting";
+  const generatedVotingIds = new Set((subjects || [])
+    .filter((subject) => subject.mode === "nomination" && subject.status === "closed" && subject.generated_subject)
+    .map((subject) => subject.generated_subject.id));
+  const cardSubjects = Array.isArray(subjects) ? subjects.filter((subject) => !generatedVotingIds.has(subject.id)) : [];
   const confirmationCopy = confirmation && confirmCopy[confirmation.subject.mode === "nomination" && confirmation.action === "close" ? "closeNomination" : confirmation.action];
   return (
     <main className="min-h-screen bg-[#fffaf7] px-4 py-5 text-[#25170f] sm:px-8 sm:py-8">
@@ -131,8 +135,25 @@ function VotingManagement({ eventSlug, userId }) {
         {actionNotice && <p role="status" className="rounded-xl bg-[#e5f3e7] px-4 py-3 text-sm text-[#255b31]">{actionNotice}</p>}
         {isLoading && <div role="status" className="flex min-h-64 items-center justify-center gap-3 text-sm text-[#6f625b]"><LoaderCircle className="size-6 animate-spin text-[#f6671e]" /> Loading voting subjects...</div>}
         {!isLoading && error && <div role="alert" className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-2xl border border-[#ffdece] bg-white p-8 text-center"><CircleAlert className="size-8 text-[#ba1a1a]" /><p>The voting subjects could not be loaded.</p><Button type="button" variant="secondary" onClick={() => mutate()}>Try again</Button></div>}
-        {!isLoading && !error && Array.isArray(subjects) && subjects.length === 0 && <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#f3c7b2] bg-white p-8 text-center"><div className="flex size-14 items-center justify-center rounded-2xl bg-[#ffdece] text-[#f6671e]"><Vote className="size-7" /></div><h2 className="text-xl font-bold">No voting subjects yet</h2><p className="max-w-sm text-sm text-[#6f625b]">Create a subject and add at least two contestants to get started.</p><Button type="button" onClick={(event) => openForm(null, event.currentTarget)}><Plus /> Create first subject</Button></div>}
-        {!isLoading && !error && Array.isArray(subjects) && subjects.length > 0 && <section aria-label="Voting subjects" className="grid gap-4 md:grid-cols-2">{subjects.map((subject) => <VotingSubjectCard key={subject.id} subject={subject} eventSlug={eventSlug} busyAction={busy?.id === subject.id ? busy.action : null} onEdit={openForm} onConfirm={(selected, action, opener) => { dialogOpenerRef.current = opener; setActionError(""); setConfirmation({ subject: selected, action }); }} onQr={(selected, opener) => { dialogOpenerRef.current = opener; const nomination = selected.mode === "nomination"; setQrPurpose(nomination ? "nomination" : "voting"); setQrSubject(nomination ? { ...selected, public_url: getPublicNominationUrl(selected.slug, window.location.origin) } : selected); }} />)}</section>}
+        {!isLoading && !error && cardSubjects.length === 0 && <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#f3c7b2] bg-white p-8 text-center"><div className="flex size-14 items-center justify-center rounded-2xl bg-[#ffdece] text-[#f6671e]"><Vote className="size-7" /></div><h2 className="text-xl font-bold">No voting subjects yet</h2><p className="max-w-sm text-sm text-[#6f625b]">Create a subject and add at least two contestants to get started.</p><Button type="button" onClick={(event) => openForm(null, event.currentTarget)}><Plus /> Create first subject</Button></div>}
+        {!isLoading && !error && cardSubjects.length > 0 && <section aria-label="Voting subjects" className="grid gap-4 md:grid-cols-2">{cardSubjects.map((subject) => {
+          const actionSubject = subject.mode === "nomination" && subject.status === "closed" && subject.generated_subject
+            ? subject.generated_subject
+            : subject;
+
+          return <VotingSubjectCard key={subject.id} subject={subject} eventSlug={eventSlug} busyAction={busy?.id === actionSubject.id ? busy.action : null} onEdit={openForm} onConfirm={(selected, action, opener) => { dialogOpenerRef.current = opener; setActionError(""); setConfirmation({ subject: selected, action }); }} onQr={(selected, opener) => {
+            dialogOpenerRef.current = opener;
+            if (selected.nomination_link_slug) {
+              const { nomination_link_slug: nominationSlug, ...votingSubject } = selected;
+              setQrPurpose("voting");
+              setQrSubject({ ...votingSubject, public_url: getPublicNominationUrl(nominationSlug, window.location.origin) });
+              return;
+            }
+            const nomination = selected.mode === "nomination";
+            setQrPurpose(nomination ? "nomination" : "voting");
+            setQrSubject(nomination ? { ...selected, public_url: getPublicNominationUrl(selected.slug, window.location.origin) } : selected);
+          }} />;
+        })}</section>}
       </div>
 
       {formMode?.mode === "nomination" ? <NominationForm key={formMode.subject?.id || "create-nomination"} open subject={formMode.subject} onOpenChange={(open) => { if (!open) setFormMode(null); }} onCloseAutoFocus={restoreFocus} onSave={saveNomination} /> : formMode && <VotingSubjectForm key={formMode.subject?.id || "create"} open subject={formMode.subject} onOpenChange={(open) => { if (!open) setFormMode(null); }} onCloseAutoFocus={restoreFocus} onSave={saveSubject} />}
