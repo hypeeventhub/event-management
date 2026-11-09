@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   History,
+  CopyCheck,
   PanelLeftClose,
   ScanQrCode,
   X,
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 const navigationIcons = {
   Dashboard: LayoutDashboard,
   History,
+  "Duplicate Attendees": CopyCheck,
   "Check In & Scanner": ScanQrCode,
 };
 
