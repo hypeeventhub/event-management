@@ -42,6 +42,7 @@ const initialDetails = {
   description: "",
   qr_description: "",
   category: "Corporate Gala",
+  groupEventCode: "",
   capacity: "",
   startsAt: "",
   endsAt: "",
@@ -227,6 +228,11 @@ function EventDetails({ details, onChange  }) {
       <div>
         <label htmlFor="event-venue" className={fieldLabel}>Venue or meeting link</label>
         <Input id="event-venue" value={details.venue} onChange={(event) => onChange("venue", event.target.value)} placeholder="e.g. Grand Ballroom Hall B" />
+      </div>
+      <div>
+        <label htmlFor="event-group-code" className={fieldLabel}>Group Event Code <span className="font-normal normal-case text-[#96877f]">(optional)</span></label>
+        <Input id="event-group-code" value={details.groupEventCode || ""} onChange={(event) => onChange("groupEventCode", event.target.value)} maxLength={100} placeholder="e.g. MAXICARE-YEAR-END-2026" />
+        <p className="mt-1.5 text-xs leading-5 text-[#6f625b]">Events with the same code share duplicate-registration validation for attendees with matching name and email.</p>
       </div>
       <section className="space-y-4 rounded-2xl border border-[#ffdece] bg-[#fffaf7] p-4">
         <div className="flex items-start gap-3">
