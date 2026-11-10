@@ -33,6 +33,8 @@ export default function EventAttendeesPage() {
   const [selectedSeatRegistration, setSelectedSeatRegistration] = useState(null);
   const [seatTableNumber, setSeatTableNumber] = useState("");
   const [seatNumber, setSeatNumber] = useState("");
+  const [seatChartTable, setSeatChartTable] = useState(1);
+  const [activeTab, setActiveTab] = useState("attendees");
   const [assigningSeat, setAssigningSeat] = useState(false);
   const [sortBy, sortDirection] = sort.split(":");
 
@@ -83,13 +85,14 @@ export default function EventAttendeesPage() {
     const channel = echo.private(channelName);
     channel.listen(".attendee.registered", () => {
       mutateRegistrations();
+      mutateSeating();
     });
 
     return () => {
       channel.stopListening(".attendee.registered");
       echo.leave(channelName);
     };
-  }, [event?.id, mutateRegistrations]);
+  }, [event?.id, mutateRegistrations, mutateSeating]);
 
   const data = event && registrationPage ? {
     event,
@@ -103,6 +106,9 @@ export default function EventAttendeesPage() {
   const currentPage = registrationPage?.current_page ?? page;
   const hasFilters = Boolean(search || statusFilter !== "all" || checkInFilter !== "all");
   const occupiedSeats = seatingSummary?.assignments || [];
+  const currentTableAssignments = occupiedSeats.filter((assignment) => Number(assignment.table_number) === seatChartTable);
+  const currentTableSeats = Array.from({ length: seatingSummary?.seats_per_table || 0 }, (_, index) => index + 1);
+  const assignmentBySeat = new Map(currentTableAssignments.map((assignment) => [Number(assignment.seat_number), assignment]));
   const availableSeats = seatTableNumber && seatingSummary
     ? Array.from({ length: seatingSummary.seats_per_table }, (_, index) => index + 1)
       .filter((number) => !occupiedSeats.some((assignment) => Number(assignment.table_number) === Number(seatTableNumber)
@@ -167,6 +173,53 @@ export default function EventAttendeesPage() {
     }
   }
 
+  async function exportSeatingToExcel() {
+    if (!seatingSummary || exportingFormat) return;
+
+    setExportingFormat("seating");
+    setActionError("");
+    try {
+      const [{ createAttendeeWorkbookSheets }, { default: writeExcelFile }] = await Promise.all([
+        import("@/lib/attendee-workbook.mjs"),
+        import("write-excel-file/browser"),
+      ]);
+      const assignments = seatingSummary.assignments || [];
+      const columns = [
+        { header: "Table number", key: "table_number" },
+        { header: "Seat number", key: "seat_number" },
+        { header: "Attendee", key: "name" },
+        { header: "Email", key: "email" },
+        { header: "Registration code", key: "registration_code" },
+        { header: "Check-in status", key: "check_in_status" },
+      ];
+      const sheets = Array.from({ length: seatingSummary.seats_per_table }, (_, index) => {
+        const seatNumberForSheet = index + 1;
+        return {
+          name: `Seat ${seatNumberForSheet}`,
+          rows: assignments
+            .filter((assignment) => Number(assignment.seat_number) === seatNumberForSheet)
+            .map((assignment) => ({
+              table_number: assignment.table_number,
+              seat_number: assignment.seat_number,
+              name: `${assignment.first_name || ""} ${assignment.last_name || ""}`.trim(),
+              email: assignment.email || "",
+              registration_code: assignment.registration_code || "",
+              check_in_status: assignment.checked_in ? "Checked in" : "Not checked in",
+            })),
+        };
+      });
+      const safeTitle = data.event.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+      await writeExcelFile(createAttendeeWorkbookSheets({ columns, sheets })).toFile(
+        `${safeTitle || "event"}-seating-arrangement.xlsx`,
+      );
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.message || "The seating arrangement export could not be generated.");
+    } finally {
+      setExportingFormat("");
+    }
+  }
+
   async function checkIn(registration) {
     setCheckingIn(registration.id);
     setActionError("");
@@ -176,7 +229,7 @@ export default function EventAttendeesPage() {
         registration_code: registration.registration_code,
         gate: "Dashboard",
       });
-      await mutateRegistrations();
+      await Promise.all([mutateRegistrations(), mutateSeating()]);
     } catch (requestError) {
       setActionError(requestError.response?.data?.message || "The attendee could not be checked in.");
     } finally {
@@ -255,19 +308,62 @@ export default function EventAttendeesPage() {
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div><p className="text-xs font-bold tracking-[0.08em] text-[#f6671e] uppercase">Registered attendees</p><h1 className="mt-1 text-3xl font-bold text-[#25170f]">{data.event.title}</h1><p className="mt-1 text-sm text-[#6f625b]">{data.total} total registration{data.total === 1 ? "" : "s"}</p></div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" variant="secondary" onClick={exportToExcel} disabled={Boolean(exportingFormat) || data.total === 0}>
-              {exportingFormat === "excel" ? <LoaderCircle className="animate-spin" /> : <FileSpreadsheet />}
-              {exportingFormat === "excel" ? "Exporting..." : "Export Excel"}
-            </Button>
-            <Button type="button" variant="secondary" onClick={exportToCsv} disabled={Boolean(exportingFormat) || data.total === 0}>
-              {exportingFormat === "csv" ? <LoaderCircle className="animate-spin" /> : <FileText />}
-              {exportingFormat === "csv" ? "Exporting..." : "Export CSV"}
-            </Button>
-            <div className="flex size-12 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]"><UsersRound className="size-6" /></div>
+            {activeTab === "attendees" && <>
+              <Button type="button" variant="secondary" onClick={exportToExcel} disabled={Boolean(exportingFormat) || data.total === 0}>
+                {exportingFormat === "excel" ? <LoaderCircle className="animate-spin" /> : <FileSpreadsheet />}
+                {exportingFormat === "excel" ? "Exporting..." : "Export Excel"}
+              </Button>
+              <Button type="button" variant="secondary" onClick={exportToCsv} disabled={Boolean(exportingFormat) || data.total === 0}>
+                {exportingFormat === "csv" ? <LoaderCircle className="animate-spin" /> : <FileText />}
+                {exportingFormat === "csv" ? "Exporting..." : "Export CSV"}
+              </Button>
+            </>}
+            <div className="flex size-12 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]">{activeTab === "seating" ? <Armchair className="size-6" /> : <UsersRound className="size-6" />}</div>
           </div>
         </div>
 
-        {data.event.seating_enabled && <Card className="border border-[#ffdece] p-4 sm:p-5">
+        {data.event.seating_enabled && <div
+          role="tablist"
+          aria-label="Attendee views"
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            const nextTab = activeTab === "attendees" ? "seating" : "attendees";
+            setActiveTab(nextTab);
+            document.getElementById(`${nextTab}-tab`)?.focus();
+          }}
+          className="flex w-full gap-1 overflow-x-auto rounded-xl border border-[#ffdece] bg-white p-1 sm:w-fit"
+        >
+          <button
+            id="attendees-tab"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "attendees"}
+            aria-controls="attendees-panel"
+            tabIndex={activeTab === "attendees" ? 0 : -1}
+            onClick={() => setActiveTab("attendees")}
+            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${activeTab === "attendees" ? "bg-[#fff4ee] text-[#f6671e] shadow-sm" : "text-[#6f625b] hover:bg-[#fffaf7]"}`}
+          >
+            <UsersRound className="size-4" />Attendees
+          </button>
+          <button
+            id="seating-tab"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "seating"}
+            aria-controls="seating-panel"
+            tabIndex={activeTab === "seating" ? 0 : -1}
+            onClick={() => setActiveTab("seating")}
+            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${activeTab === "seating" ? "bg-[#fff4ee] text-[#f6671e] shadow-sm" : "text-[#6f625b] hover:bg-[#fffaf7]"}`}
+          >
+            <Armchair className="size-4" />Seating arrangement
+          </button>
+        </div>}
+
+        {actionError && <div role="alert" className="rounded-xl bg-[#ffdad6] px-4 py-3 text-sm font-medium text-[#93000a]">{actionError}</div>}
+
+        {data.event.seating_enabled && <div id="seating-panel" role="tabpanel" aria-labelledby="seating-tab" hidden={activeTab !== "seating"} className="space-y-5">
+        <Card className="border border-[#ffdece] p-4 sm:p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]"><Armchair className="size-5" /></div>
@@ -280,15 +376,63 @@ export default function EventAttendeesPage() {
                 </p>
               </div>
             </div>
-            {seatingSummary && <div className="sm:text-right">
-              <p className="text-sm font-semibold text-[#25170f]">{seatingSummary.assigned_count} / {seatingSummary.total_seats} seats assigned</p>
-              <p className="mt-1 text-xs text-[#6f625b]">{seatingSummary.unassigned_confirmed_count} confirmed attendee{seatingSummary.unassigned_confirmed_count === 1 ? "" : "s"} still need a seat</p>
+            {seatingSummary && <div className="flex flex-col gap-3 sm:items-end">
+              <div className="sm:text-right">
+                <p className="text-sm font-semibold text-[#25170f]">{seatingSummary.assigned_count} / {seatingSummary.total_seats} seats assigned</p>
+                <p className="mt-1 text-xs text-[#6f625b]">{seatingSummary.unassigned_confirmed_count} confirmed attendee{seatingSummary.unassigned_confirmed_count === 1 ? "" : "s"} still need a seat</p>
+              </div>
+              <Button type="button" variant="secondary" onClick={exportSeatingToExcel} disabled={Boolean(exportingFormat)}>
+                {exportingFormat === "seating" ? <LoaderCircle className="animate-spin" /> : <FileSpreadsheet />}
+                {exportingFormat === "seating" ? "Exporting seating…" : "Export seating Excel"}
+              </Button>
             </div>}
           </div>
+        </Card>
+
+        {seatingSummary && <Card className="border border-[#ffdece] p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-[#25170f]">Seating chart</h2>
+              <p className="mt-1 text-sm text-[#6f625b]">View assigned attendees and open seats at each table.</p>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-[#fff4ee] p-2 sm:justify-start">
+              <Button type="button" size="icon" variant="secondary" aria-label="Previous table" title="Previous table" disabled={seatChartTable <= 1} onClick={() => setSeatChartTable((current) => Math.max(1, current - 1))}><ChevronLeft /></Button>
+              <div className="min-w-28 text-center">
+                <p className="text-sm font-bold text-[#25170f]">Table {seatChartTable}</p>
+                <p className="text-xs text-[#6f625b]">{seatChartTable} of {seatingSummary.table_count}</p>
+              </div>
+              <Button type="button" size="icon" variant="secondary" aria-label="Next table" title="Next table" disabled={seatChartTable >= seatingSummary.table_count} onClick={() => setSeatChartTable((current) => Math.min(seatingSummary.table_count, current + 1))}><ChevronRight /></Button>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-[#6f625b]">
+            <span className="inline-flex items-center gap-2"><span className="size-2.5 rounded-full bg-[#f6671e]" />Assigned ({currentTableAssignments.length})</span>
+            <span className="inline-flex items-center gap-2"><span className="size-2.5 rounded-full border border-[#d8cbc4] bg-white" />Available ({Math.max(0, seatingSummary.seats_per_table - currentTableAssignments.length)})</span>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {currentTableSeats.map((seat) => {
+              const assignment = assignmentBySeat.get(seat);
+              return (
+                <div key={seat} className={`min-h-24 rounded-xl border p-3 ${assignment ? "border-[#ffb895] bg-[#fff4ee]" : "border-[#eee4de] bg-white"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6f625b]"><Armchair className={`size-4 ${assignment ? "text-[#f6671e]" : "text-[#96877f]"}`} />Seat {seat}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${assignment ? "bg-[#ffdece] text-[#a84410]" : "bg-[#f7f1ed] text-[#6f625b]"}`}>{assignment ? "Assigned" : "Open"}</span>
+                  </div>
+                  {assignment ? <div className="mt-3">
+                    <p className="text-sm leading-5 font-semibold text-[#25170f]">{assignment.first_name} {assignment.last_name}</p>
+                    <p className="mt-1 break-all text-[11px] leading-4 text-[#6f625b]">{assignment.email}</p>
+                    <span className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold ${assignment.checked_in ? "bg-[#e6f8ef] text-[#006c49]" : "bg-[#f7f1ed] text-[#6f625b]"}`}>
+                      <span className={`size-1.5 rounded-full ${assignment.checked_in ? "bg-[#00875a]" : "bg-[#96877f]"}`} />
+                      {assignment.checked_in ? "Checked in" : "Not checked in"}
+                    </span>
+                  </div> : <p className="mt-3 text-xs text-[#96877f]">Available seat</p>}
+                </div>
+              );
+            })}
+          </div>
         </Card>}
+        </div>}
 
-        {actionError && <div role="alert" className="rounded-xl bg-[#ffdad6] px-4 py-3 text-sm font-medium text-[#93000a]">{actionError}</div>}
-
+        <div id="attendees-panel" role={data.event.seating_enabled ? "tabpanel" : undefined} aria-labelledby={data.event.seating_enabled ? "attendees-tab" : undefined} hidden={data.event.seating_enabled && activeTab !== "attendees"} className="space-y-5">
         <Card className="border border-[#ffdece] p-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.5fr)_repeat(3,minmax(10rem,1fr))]">
             <label className="relative block">
@@ -389,6 +533,7 @@ export default function EventAttendeesPage() {
             </div>
           </div>
         </div>}
+        </div>
       </div>
 
       <AnsweredFormsDialog
