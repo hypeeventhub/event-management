@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BadgeCheck, ChevronLeft, ChevronRight, Eye, FileSpreadsheet, FileText, LoaderCircle, Search, UsersRound, X } from "lucide-react";
+import { Armchair, ArrowLeft, BadgeCheck, ChevronLeft, ChevronRight, Eye, FileSpreadsheet, FileText, LoaderCircle, Search, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,6 +9,7 @@ import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import AnsweredFormsDialog from "@/components/dashboard/answered-forms-dialog";
 import VotingActivityDialog from "@/components/dashboard/voting-activity-dialog";
 import api from "@/lib/api";
@@ -29,6 +30,10 @@ export default function EventAttendeesPage() {
   const [actionError, setActionError] = useState("");
   const [selectedRegistration, setSelectedRegistration] = useState(null);
   const [selectedVotingRegistration, setSelectedVotingRegistration] = useState(null);
+  const [selectedSeatRegistration, setSelectedSeatRegistration] = useState(null);
+  const [seatTableNumber, setSeatTableNumber] = useState("");
+  const [seatNumber, setSeatNumber] = useState("");
+  const [assigningSeat, setAssigningSeat] = useState(false);
   const [sortBy, sortDirection] = sort.split(":");
 
   useEffect(() => {
@@ -48,6 +53,11 @@ export default function EventAttendeesPage() {
 
   const { data: event, error: eventError, isLoading: eventLoading } = useSWR(
     id ? `/api/events/${id}` : null,
+    (url) => api.get(url).then((response) => response.data.data),
+  );
+  const seatingKey = id && event?.seating_enabled ? `/api/events/${id}/seating` : null;
+  const { data: seatingSummary, mutate: mutateSeating } = useSWR(
+    seatingKey,
     (url) => api.get(url).then((response) => response.data.data),
   );
   const registrationsKey = id ? `/api/events/${id}/registrations?${query.toString()}` : null;
@@ -92,6 +102,13 @@ export default function EventAttendeesPage() {
   const lastPage = registrationPage?.last_page ?? 1;
   const currentPage = registrationPage?.current_page ?? page;
   const hasFilters = Boolean(search || statusFilter !== "all" || checkInFilter !== "all");
+  const occupiedSeats = seatingSummary?.assignments || [];
+  const availableSeats = seatTableNumber && seatingSummary
+    ? Array.from({ length: seatingSummary.seats_per_table }, (_, index) => index + 1)
+      .filter((number) => !occupiedSeats.some((assignment) => Number(assignment.table_number) === Number(seatTableNumber)
+        && Number(assignment.seat_number) === number
+        && Number(assignment.registration_id) !== Number(selectedSeatRegistration?.id)))
+    : [];
 
   useEffect(() => {
     if (registrationPage && page > registrationPage.last_page) {
@@ -167,6 +184,48 @@ export default function EventAttendeesPage() {
     }
   }
 
+  function openSeatDialog(registration) {
+    setSelectedSeatRegistration(registration);
+    setSeatTableNumber(registration.seat_assignment ? String(registration.seat_assignment.table_number) : "");
+    setSeatNumber(registration.seat_assignment ? String(registration.seat_assignment.seat_number) : "");
+    setActionError("");
+  }
+
+  async function assignSeat() {
+    if (!selectedSeatRegistration || !seatTableNumber || !seatNumber || assigningSeat) return;
+
+    setAssigningSeat(true);
+    setActionError("");
+    try {
+      await api.patch(`/api/events/${id}/registrations/${selectedSeatRegistration.id}/seat`, {
+        table_number: Number(seatTableNumber),
+        seat_number: Number(seatNumber),
+      });
+      await Promise.all([mutateRegistrations(), mutateSeating()]);
+      setSelectedSeatRegistration(null);
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.message || "The seat could not be assigned. Refresh the seating list and try again.");
+    } finally {
+      setAssigningSeat(false);
+    }
+  }
+
+  async function removeSeatAssignment() {
+    if (!selectedSeatRegistration || assigningSeat) return;
+
+    setAssigningSeat(true);
+    setActionError("");
+    try {
+      await api.delete(`/api/events/${id}/registrations/${selectedSeatRegistration.id}/seat`);
+      await Promise.all([mutateRegistrations(), mutateSeating()]);
+      setSelectedSeatRegistration(null);
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.message || "The seat assignment could not be removed.");
+    } finally {
+      setAssigningSeat(false);
+    }
+  }
+
   async function saveRegistrationAnswers(payload) {
     if (!selectedRegistration) return null;
 
@@ -207,6 +266,26 @@ export default function EventAttendeesPage() {
             <div className="flex size-12 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]"><UsersRound className="size-6" /></div>
           </div>
         </div>
+
+        {data.event.seating_enabled && <Card className="border border-[#ffdece] p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#ffdece] text-[#f6671e]"><Armchair className="size-5" /></div>
+              <div>
+                <h2 className="font-semibold text-[#25170f]">Seating assignments</h2>
+                <p className="mt-1 text-sm text-[#6f625b]">
+                  {seatingSummary
+                    ? `${seatingSummary.confirmed_assigned_count} of ${seatingSummary.confirmed_registrations_count} confirmed attendees assigned`
+                    : "Loading seating assignments…"}
+                </p>
+              </div>
+            </div>
+            {seatingSummary && <div className="sm:text-right">
+              <p className="text-sm font-semibold text-[#25170f]">{seatingSummary.assigned_count} / {seatingSummary.total_seats} seats assigned</p>
+              <p className="mt-1 text-xs text-[#6f625b]">{seatingSummary.unassigned_confirmed_count} confirmed attendee{seatingSummary.unassigned_confirmed_count === 1 ? "" : "s"} still need a seat</p>
+            </div>}
+          </div>
+        </Card>}
 
         {actionError && <div role="alert" className="rounded-xl bg-[#ffdad6] px-4 py-3 text-sm font-medium text-[#93000a]">{actionError}</div>}
 
@@ -257,12 +336,40 @@ export default function EventAttendeesPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[68rem] border-collapse text-left text-sm">
-                <thead className="bg-[#fff4ee] text-[11px] tracking-[0.06em] text-[#6f625b] uppercase"><tr><th className="px-5 py-3">Attendee</th><th className="px-5 py-3">Registration code</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Voted status</th><th className="px-5 py-3">Registered</th><th className="px-5 py-3">Check-in</th><th className="px-5 py-3 text-right">Action</th></tr></thead>
+                <thead className="bg-[#fff4ee] text-[11px] tracking-[0.06em] text-[#6f625b] uppercase"><tr><th className="px-5 py-3">Attendee</th><th className="px-5 py-3">Registration code</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Voted status</th><th className="px-5 py-3">Registered</th><th className="px-5 py-3">Check-in</th>{data.event.seating_enabled && <th className="px-5 py-3">Seat</th>}<th className="px-5 py-3 text-right">Action</th></tr></thead>
                 <tbody className="divide-y divide-[#ffdece]/70">
                   {data.registrations.map((registration) => {
                     const checkedIn = registration.check_ins.some((checkIn) => checkIn.result === "accepted");
                     return (
-                      <tr key={registration.id} className="hover:bg-[#fffaf7]"><td className="px-5 py-4"><div className="font-semibold text-[#25170f]">{registration.attendee.first_name} {registration.attendee.last_name}</div><div className="text-xs text-[#96877f]">{registration.attendee.email}</div></td><td className="px-5 py-4 font-mono text-xs text-[#6f625b]">{registration.registration_code}</td><td className="px-5 py-4"><Badge variant="success">{registration.status}</Badge></td><td className="px-5 py-4"><button type="button" onClick={() => setSelectedVotingRegistration(registration)} aria-label={`View voting activity for ${registration.attendee.first_name} ${registration.attendee.last_name}`} title="View voting activity" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f6671e]/40"><Badge variant={registration.has_voted ? "success" : "neutral"}>{registration.has_voted ? "Voted" : "Not voted"}</Badge></button></td><td className="px-5 py-4 text-xs text-[#6f625b]">{new Date(registration.registered_at).toLocaleString()}</td><td className="px-5 py-4"><Badge variant={checkedIn ? "success" : "neutral"}>{checkedIn ? "Checked in" : "Not checked in"}</Badge></td><td className="px-5 py-4"><div className="flex items-center justify-end gap-2"><Button type="button" size="icon" variant="secondary" aria-label="View answered forms" title="View answered forms" onClick={() => setSelectedRegistration(registration)}><Eye /></Button><Button type="button" size="icon" variant={checkedIn ? "secondary" : "default"} aria-label={checkedIn ? "Checked in" : "Check in attendee"} title={checkedIn ? "Checked in" : "Check in attendee"} disabled={checkedIn || checkingIn === registration.id} onClick={() => checkIn(registration)}>{checkingIn === registration.id ? <LoaderCircle className="animate-spin" /> : <BadgeCheck />}</Button></div></td></tr>
+                      <tr key={registration.id} className="hover:bg-[#fffaf7]">
+                        <td className="px-5 py-4">
+                          <div className="font-semibold text-[#25170f]">{registration.attendee.first_name} {registration.attendee.last_name}</div>
+                          <div className="text-xs text-[#96877f]">{registration.attendee.email}</div>
+                        </td>
+                        <td className="px-5 py-4 font-mono text-xs text-[#6f625b]">{registration.registration_code}</td>
+                        <td className="px-5 py-4"><Badge variant="success">{registration.status}</Badge></td>
+                        <td className="px-5 py-4">
+                          <button type="button" onClick={() => setSelectedVotingRegistration(registration)} aria-label={`View voting activity for ${registration.attendee.first_name} ${registration.attendee.last_name}`} title="View voting activity" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f6671e]/40">
+                            <Badge variant={registration.has_voted ? "success" : "neutral"}>{registration.has_voted ? "Voted" : "Not voted"}</Badge>
+                          </button>
+                        </td>
+                        <td className="px-5 py-4 text-xs text-[#6f625b]">{new Date(registration.registered_at).toLocaleString()}</td>
+                        <td className="px-5 py-4"><Badge variant={checkedIn ? "success" : "neutral"}>{checkedIn ? "Checked in" : "Not checked in"}</Badge></td>
+                        {data.event.seating_enabled && <td className="px-5 py-4">
+                          <Button type="button" size="sm" variant={registration.seat_assignment ? "secondary" : "outline"} disabled={registration.status !== "confirmed" || !seatingSummary} onClick={() => openSeatDialog(registration)}>
+                            <Armchair />
+                            {registration.seat_assignment ? `Table ${registration.seat_assignment.table_number} · Seat ${registration.seat_assignment.seat_number}` : "Assign seat"}
+                          </Button>
+                        </td>}
+                        <td className="px-5 py-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button type="button" size="icon" variant="secondary" aria-label="View answered forms" title="View answered forms" onClick={() => setSelectedRegistration(registration)}><Eye /></Button>
+                            <Button type="button" size="icon" variant={checkedIn ? "secondary" : "default"} aria-label={checkedIn ? "Checked in" : "Check in attendee"} title={checkedIn ? "Checked in" : "Check in attendee"} disabled={checkedIn || checkingIn === registration.id} onClick={() => checkIn(registration)}>
+                              {checkingIn === registration.id ? <LoaderCircle className="animate-spin" /> : <BadgeCheck />}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -304,6 +411,76 @@ export default function EventAttendeesPage() {
           }
         }}
       />
+      <Dialog
+        open={Boolean(selectedSeatRegistration)}
+        onOpenChange={(open) => {
+          if (!open && !assigningSeat) {
+            setSelectedSeatRegistration(null);
+            setActionError("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <div className="space-y-5 p-6">
+            <DialogHeader>
+              <DialogTitle>Assign a seat</DialogTitle>
+              <DialogDescription>
+                Choose a table and seat for {selectedSeatRegistration?.attendee.first_name} {selectedSeatRegistration?.attendee.last_name}.
+              </DialogDescription>
+            </DialogHeader>
+
+            {actionError && <div role="alert" className="rounded-lg bg-[#ffdad6] px-3 py-2 text-sm font-medium text-[#93000a]">{actionError}</div>}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="space-y-1.5 text-sm font-medium text-[#25170f]">
+                <span>Table</span>
+                <select
+                  value={seatTableNumber}
+                  onChange={(event) => {
+                    setSeatTableNumber(event.target.value);
+                    setSeatNumber("");
+                    setActionError("");
+                  }}
+                  className="h-10 w-full rounded-lg border border-[#ffdece] bg-white px-3 text-sm outline-none focus:border-[#f6671e] focus:ring-2 focus:ring-[#f6671e]/15"
+                >
+                  <option value="">Select a table</option>
+                  {Array.from({ length: seatingSummary?.table_count || 0 }, (_, index) => index + 1).map((table) => (
+                    <option key={table} value={table}>Table {table}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1.5 text-sm font-medium text-[#25170f]">
+                <span>Seat</span>
+                <select
+                  value={seatNumber}
+                  onChange={(event) => {
+                    setSeatNumber(event.target.value);
+                    setActionError("");
+                  }}
+                  disabled={!seatTableNumber}
+                  className="h-10 w-full rounded-lg border border-[#ffdece] bg-white px-3 text-sm outline-none focus:border-[#f6671e] focus:ring-2 focus:ring-[#f6671e]/15 disabled:cursor-not-allowed disabled:bg-[#f7f1ed]"
+                >
+                  <option value="">Select a seat</option>
+                  {availableSeats.map((seat) => (
+                    <option key={seat} value={seat}>Seat {seat}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <DialogFooter>
+              {selectedSeatRegistration?.seat_assignment && <Button type="button" variant="secondary" disabled={assigningSeat} onClick={removeSeatAssignment}>
+                {assigningSeat ? <LoaderCircle className="animate-spin" /> : null}Remove assignment
+              </Button>}
+              <Button type="button" variant="secondary" disabled={assigningSeat} onClick={() => setSelectedSeatRegistration(null)}>Cancel</Button>
+              <Button type="button" disabled={!seatTableNumber || !seatNumber || assigningSeat} onClick={assignSeat}>
+                {assigningSeat ? <LoaderCircle className="animate-spin" /> : <Armchair />}
+                {assigningSeat ? "Saving…" : selectedSeatRegistration?.seat_assignment ? "Save seat" : "Assign seat"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

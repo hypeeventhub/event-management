@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   AlignLeft,
+  Armchair,
   CalendarDays,
   CheckSquare2,
   ChevronDown,
@@ -45,6 +46,9 @@ const initialDetails = {
   startsAt: "",
   endsAt: "",
   venue: "",
+  seatingEnabled: false,
+  tableCount: "",
+  seatsPerTable: "",
 };
 const initialQuestions = [
   {
@@ -224,6 +228,34 @@ function EventDetails({ details, onChange  }) {
         <label htmlFor="event-venue" className={fieldLabel}>Venue or meeting link</label>
         <Input id="event-venue" value={details.venue} onChange={(event) => onChange("venue", event.target.value)} placeholder="e.g. Grand Ballroom Hall B" />
       </div>
+      <section className="space-y-4 rounded-2xl border border-[#ffdece] bg-[#fffaf7] p-4">
+        <div className="flex items-start gap-3">
+          <Armchair aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-[#f6671e]" />
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-bold text-[#25170f]">Seating arrangement <span className="font-normal text-[#96877f]">(optional)</span></h4>
+            <p className="mt-1 text-xs leading-5 text-[#6f625b]">Set the table layout. After attendees register, you can assign each confirmed attendee to an available seat.</p>
+          </div>
+          <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-semibold text-[#6f625b]">
+            <input type="checkbox" checked={Boolean(details.seatingEnabled)} onChange={(event) => onChange("seatingEnabled", event.target.checked)} className="size-4 accent-[#f6671e]" />
+            Enable
+          </label>
+        </div>
+        {details.seatingEnabled && (
+          <div className="grid gap-4 border-t border-[#ffdece] pt-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="event-table-count" className={fieldLabel}>Number of tables</label>
+              <Input id="event-table-count" type="number" min="1" step="1" value={details.tableCount} onChange={(event) => onChange("tableCount", event.target.value)} placeholder="e.g. 20" />
+            </div>
+            <div>
+              <label htmlFor="event-seats-per-table" className={fieldLabel}>Seats per table</label>
+              <Input id="event-seats-per-table" type="number" min="1" step="1" value={details.seatsPerTable} onChange={(event) => onChange("seatsPerTable", event.target.value)} placeholder="e.g. 8" />
+            </div>
+            {Number(details.tableCount) > 0 && Number(details.seatsPerTable) > 0 && (
+              <p className="text-xs text-[#6f625b] sm:col-span-2">Total seating capacity: <span className="font-semibold text-[#25170f]">{(Number(details.tableCount) * Number(details.seatsPerTable)).toLocaleString()} seats</span></p>
+            )}
+          </div>
+        )}
+      </section>
     </section>
   );
 }
@@ -421,6 +453,12 @@ export function CreateEventDialog({ open, onOpenChange, onCreated, initialEvent 
     if (new Date(details.endsAt) <= new Date(details.startsAt)) {
       setActiveView("details");
       setFormError("The event end date must be after its start date.");
+      return;
+    }
+    if (details.seatingEnabled && (!Number.isInteger(Number(details.tableCount)) || Number(details.tableCount) < 1
+      || !Number.isInteger(Number(details.seatsPerTable)) || Number(details.seatsPerTable) < 1)) {
+      setActiveView("details");
+      setFormError("Enter a valid table count and number of seats per table, or turn seating off.");
       return;
     }
     if (questions.some((question) => !question.label.trim())) {
