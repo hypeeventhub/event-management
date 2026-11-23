@@ -238,33 +238,45 @@ export function UpcomingEventCard({ event, onEdit, onView, onDelete, onRegistrat
         <div className="flex flex-wrap items-center gap-1.5">
           <Button
             type="button"
-            size="sm"
+            size="icon"
             variant={event.registrationIsOpen ? "secondary" : "default"}
             disabled={registrationBusy}
             onClick={onRegistrationToggle}
             aria-label={`${event.registrationIsOpen ? "Close" : "Open"} registration for ${event.title}`}
+            title={`${event.registrationIsOpen ? "Close" : "Open"} registration`}
           >
             {registrationBusy ? <LoaderCircle className="animate-spin" /> : event.registrationIsOpen ? <LockKeyhole /> : <LockOpen />}
-            {event.registrationIsOpen ? "Close registration" : "Open registration"}
           </Button>
           {event.sourceId && (
-            <Button asChild variant="secondary" size="sm">
-              <a href={`/register/${event.id}`} target="_blank" rel="noreferrer">
+            <Button asChild variant="secondary" size="icon">
+              <a href={`/register/${event.id}`} target="_blank" rel="noreferrer" aria-label="Open registration form" title="Registration form">
                 <ExternalLink className="size-4 text-[#f6671e]" />
-                Registration Form
               </a>
             </Button>
           )}
           {event.sourceId && (
-            <Button asChild variant="secondary" size="sm">
-              <a href={`/events/${event.sourceId}/attendees`}>
+            <Button asChild variant="secondary" size="icon">
+              <a href={`/events/${event.sourceId}/attendees`} aria-label="View attendees" title="Attendees">
                 <UsersRound className="size-4 text-[#f6671e]" />
-                Attendees
               </a>
             </Button>
           )}
         </div>
         <div className="flex items-center gap-2">
+          {event.sourceId && (
+            <Button asChild variant="secondary" size="icon">
+              <Link href={getRaffleHref(event)} aria-label="Open raffle" title="Raffle">
+                <Dice5 />
+              </Link>
+            </Button>
+          )}
+          {event.sourceId && (
+            <Button asChild variant="secondary" size="icon">
+              <Link href={getVotingHref(event)} aria-label="Open voting" title="Voting">
+                <Trophy />
+              </Link>
+            </Button>
+          )}
           <Button
             type="button"
             variant="secondary"
@@ -287,8 +299,8 @@ export function UpcomingEventCard({ event, onEdit, onView, onDelete, onRegistrat
           >
             {deleteBusy ? <LoaderCircle className="animate-spin" /> : <Trash2 />}
           </Button>
-          <Button type="button" size="sm" onClick={onEdit}>
-            Edit Event
+          <Button type="button" variant="secondary" size="icon" onClick={onEdit} aria-label={`Edit ${event.title}`} title="Edit event">
+            <Pencil />
           </Button>
         </div>
       </div>

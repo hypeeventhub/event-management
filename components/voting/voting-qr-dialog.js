@@ -11,10 +11,29 @@ import { getVotingQrFilename, shouldRenderVotingQrImage } from "@/lib/voting-sub
 
 import Link from "next/link";
 
+const qrCopy = {
+  event: {
+    title: "Event poll QR code",
+    description: "Share this link with attendees. It stays the same for every nomination and voting round.",
+    linkName: "event poll",
+  },
+  nomination: {
+    title: "Nomination QR code",
+    description: "Share this link with attendees to nominate a candidate.",
+    linkName: "nomination",
+  },
+  voting: {
+    title: "Voting QR code",
+    description: "Share this link with attendees to vote.",
+    linkName: "voting",
+  },
+};
+
 export function VotingQrDialog({ subject, purpose = "voting", onOpenChange, onCloseAutoFocus }) {
   const [imageUrl, setImageUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const copy = qrCopy[purpose] ?? qrCopy.voting;
 
   useEffect(() => {
     if (!subject) return;
@@ -38,15 +57,15 @@ export function VotingQrDialog({ subject, purpose = "voting", onOpenChange, onCl
 
   return (
     <Dialog open={Boolean(subject)} onOpenChange={onOpenChange}>
-      <DialogContent className="p-6 sm:p-8" onCloseAutoFocus={onCloseAutoFocus}>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-4 p-5 sm:p-8" onCloseAutoFocus={onCloseAutoFocus}>
         <DialogHeader className="pr-8">
-          <DialogTitle>{purpose === "nomination" ? "Nomination QR code" : "Voting QR code"}</DialogTitle>
-          <DialogDescription>{subject?.title} · Share this link with attendees to {purpose === "nomination" ? "nominate a candidate" : "vote"}.</DialogDescription>
+          <DialogTitle>{copy.title}</DialogTitle>
+          <DialogDescription className="wrap-anywhere">{subject?.title} · {copy.description}</DialogDescription>
         </DialogHeader>
-        <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl bg-[#fff4ee] p-4">
+        <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl bg-[#fff4ee] p-4">
           {loading && <LoaderCircle className="size-8 animate-spin text-[#f6671e]" aria-label="Generating QR code" />}
           {!loading && error && <p role="alert" className="text-center text-sm text-[#93000a]">{error}</p>}
-          {shouldRenderVotingQrImage(subject, imageUrl, loading) && <Image unoptimized src={imageUrl} width={320} height={320} alt={`QR code for ${subject.title} ${purpose} link`} className="max-w-full rounded-xl bg-white" />}
+          {shouldRenderVotingQrImage(subject, imageUrl, loading) && <Image unoptimized src={imageUrl} width={320} height={320} alt={`QR code for ${subject.title} ${copy.linkName} link`} className="h-auto max-w-full rounded-xl bg-white" />}
           {!loading && !imageUrl && !error && <QrCode className="size-10 text-[#f6671e]" aria-hidden="true" />}
         </div>
         {subject?.public_url && <Link href={subject.public_url} target="_blank" className="break-all text-center text-xs text-[#6f625b]">{subject.public_url}</Link>}

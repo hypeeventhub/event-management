@@ -15,6 +15,8 @@ import api from "@/lib/api";
 import { shouldReconcileRaffleError } from "@/lib/raffle-client.mjs";
 import { getRaffleTheme } from "@/lib/raffle-themes.mjs";
 import { getWinnerCelebrationState } from "@/lib/winner-celebration.mjs";
+import { isEventFinished } from "@/lib/event-time.mjs";
+import { RaffleWinnersArchive } from "@/components/raffle/raffle-winners-archive";
 
 function RafflePage({ eventSlug, userId }) {
   const endpoint = `/api/events/${encodeURIComponent(eventSlug)}/raffle`;
@@ -89,9 +91,13 @@ function RafflePage({ eventSlug, userId }) {
   if (isLoading) return <main className="flex min-h-screen items-center justify-center bg-[#6f3faa] text-white"><LoaderCircle className="size-10 animate-spin" aria-label="Loading raffle" /></main>;
   if (error || !data) return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#6f3faa] p-6 text-center text-white"><CircleAlert className="size-10" /><p>The raffle could not be loaded.</p><Link href="/" className="rounded-full bg-white px-5 py-3 font-semibold text-[#5d3294]">Return to dashboard</Link></main>;
 
+  const theme = getRaffleTheme(data.settings.theme);
+  if (isEventFinished(data.event.ends_at)) {
+    return <RaffleWinnersArchive event={data.event} endpoint={endpoint} winners={data.winners} pagination={data.winner_pagination} theme={theme} />;
+  }
+
   if (view === "settings") return <RaffleSettings endpoint={endpoint} initialEntries={data.entries} initialSettings={data.settings} winners={data.winners} winnerPagination={data.winner_pagination} saving={status === "saving"} error={actionError} onBack={() => setView("raffle")} onSave={saveSettings} onUploadLogo={uploadLogo} onRemoveLogo={removeLogo} />;
 
-  const theme = getRaffleTheme(data.settings.theme);
   const effectiveStatus = status === "ready" && data.pending_draw ? "pending" : status;
   const effectiveEntry = selectedEntry || data.pending_draw?.entry || null;
   const celebrationState = getWinnerCelebrationState(effectiveStatus, effectiveEntry, lastWinner);

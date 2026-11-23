@@ -15,6 +15,7 @@ import VotingActivityDialog from "@/components/dashboard/voting-activity-dialog"
 import api from "@/lib/api";
 import { buildAllRegistrantsCsv, buildAttendeeExportData } from "@/lib/attendee-export.mjs";
 import { getAttendeesChannelName, getEcho } from "@/lib/echo";
+import { isEventFinished } from "@/lib/event-time.mjs";
 
 export default function EventAttendeesPage() {
   const { id } = useParams();
@@ -99,6 +100,7 @@ export default function EventAttendeesPage() {
     registrations: registrationPage.data,
     total: registrationPage.all_total ?? event.registrations_count ?? registrationPage.total,
   } : null;
+  const eventFinished = isEventFinished(data?.event?.ends_at);
   const error = eventError || registrationsError;
   const isLoading = eventLoading || (registrationsLoading && !registrationPage);
   const resultCount = registrationPage?.total ?? 0;
@@ -508,9 +510,9 @@ export default function EventAttendeesPage() {
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-end gap-2">
                             <Button type="button" size="icon" variant="secondary" aria-label="View answered forms" title="View answered forms" onClick={() => setSelectedRegistration(registration)}><Eye /></Button>
-                            <Button type="button" size="icon" variant={checkedIn ? "secondary" : "default"} aria-label={checkedIn ? "Checked in" : "Check in attendee"} title={checkedIn ? "Checked in" : "Check in attendee"} disabled={checkedIn || checkingIn === registration.id} onClick={() => checkIn(registration)}>
+                            {!eventFinished && <Button type="button" size="icon" variant={checkedIn ? "secondary" : "default"} aria-label={checkedIn ? "Checked in" : "Check in attendee"} title={checkedIn ? "Checked in" : "Check in attendee"} disabled={checkedIn || checkingIn === registration.id} onClick={() => checkIn(registration)}>
                               {checkingIn === registration.id ? <LoaderCircle className="animate-spin" /> : <BadgeCheck />}
-                            </Button>
+                            </Button>}
                           </div>
                         </td>
                       </tr>
