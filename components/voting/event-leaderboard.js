@@ -209,17 +209,17 @@ function LatestStandings({ eventSlug, userId, subject, title, theme, refreshEntr
         </ol>
       )}
 
-      <dl className="grid gap-3 sm:grid-cols-1">
-        {/* <div className="rounded-xl border border-white/35 bg-(--stage-surface) p-4 sm:p-5">
+      {/* <dl className="grid gap-3 sm:grid-cols-1">
+        <div className="rounded-xl border border-white/35 bg-(--stage-surface) p-4 sm:p-5">
           <dt className="font-semibold">Total {nomination ? "nominations" : "votes"}</dt>
           <dd className="mt-1 text-3xl font-black tabular-nums sm:text-4xl">{results.total_votes.toLocaleString()}</dd>
-        </div> */}
+        </div>
         <div className="rounded-xl border border-white/35 bg-(--stage-surface) p-4 sm:p-5">
           <dt className="font-semibold">Registration participation</dt>
           <dd className="mt-1 text-3xl font-black tabular-nums sm:text-4xl">{results.participation_percentage}%</dd>
-          {/* <dd className="mt-1 text-sm">Out of {results.total_registrations.toLocaleString()} registered attendees</dd> */}
+          <dd className="mt-1 text-sm">Out of {results.total_registrations.toLocaleString()} registered attendees</dd>
         </div>
-      </dl>
+      </dl> */}
     </section>
   );
 }
