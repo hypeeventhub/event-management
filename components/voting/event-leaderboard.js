@@ -297,7 +297,7 @@ function EventStandings({ eventSlug, userId }) {
           </div>
           <div className="space-y-1 text-center">
             {event?.title && !denied && <p className="text-base font-semibold wrap-anywhere sm:text-xl">{event.title}</p>}
-            <h1 className="text-4xl font-black tracking-tight sm:text-6xl">Event leaderboard</h1>
+            {/* <h1 className="text-4xl font-black tracking-tight sm:text-6xl">Event leaderboard</h1> */}
           </div>
         </header>
 
